@@ -65,12 +65,7 @@ There is a regex used in GPT, which is also close to BERTs preprocessing, which 
 ## Fine-tuning
 
 The [tune_bert_for_cls](src/tfs/bert/examples/tune_bert_for_cls.py) program is a simple example of fine-tuning
-our BERT implementation using HuggingFace datasets.  This is not a core dependency of the library, but you
-can add it using 
-
-```
-pip install .[examples]
-```
+our BERT implementation from scratch. 
 
 ## Completer REPL
 
@@ -84,6 +79,10 @@ BERT>> :sample
 or 
 ```
 BERT>> :max
+```
+This example uses `prompt_toolkit` which is not a core dependency, but you can install it like this:
+```
+pip install .[examples]
 ```
 
 
