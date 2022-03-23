@@ -1,7 +1,6 @@
 import logging
 import argparse
 import torch
-import numpy as np
 from torch.utils.data import Dataset
 from tfs.bert import BertCreator, NoisingCollator, TransformerMLM
 from tfs.train import SimpleLMTrainer

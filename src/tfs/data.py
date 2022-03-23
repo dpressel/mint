@@ -7,7 +7,7 @@ import gzip
 import bz2
 import json
 from typing import Callable
-
+from typing import Optional
 logger = logging.getLogger('tfs')
 
 
@@ -66,7 +66,14 @@ class TextFile:
 
 
 class RawInfiniteDataset(IterableDataset):
-    """Infinite dataset on shards with multiple workers and preprocessing on-the-fly"""
+    """Infinite dataset on shards with multiple workers and preprocessing on-the-fly
+
+    This approach roughly follows the algorithm from the original BERT paper.
+    We split the files up over the worker threads and we shuffle the files.
+    Then we use a shuffle buffer of configurable size to further shuffle each
+    cooked tensor
+
+    """
 
     def __init__(
         self,
@@ -76,8 +83,9 @@ class RawInfiniteDataset(IterableDataset):
         shuffle=True,
         prefix='[CLS]',
         suffix='[SEP]',
-        seq_len=512,
-        get_data_fn=None,
+        seq_len: int = 512,
+        get_data_fn: Optional[Callable]=None,
+        shuf_buf_len: int = 100,
     ):
         super().__init__()
         self.get_data_fn = get_data_fn if get_data_fn else lambda x: x if x else None
@@ -91,6 +99,8 @@ class RawInfiniteDataset(IterableDataset):
         self.shuffle = shuffle
         self.distribute = distribute
         self.seq_len = seq_len
+        self.shuffle_buffer_len = shuf_buf_len
+
         if torch.distributed.is_initialized() and distribute:
             self.rank = torch.distributed.get_rank()
             self.world_size = torch.distributed.get_world_size()
@@ -129,6 +139,7 @@ class RawInfiniteDataset(IterableDataset):
     def __iter__(self):
         files, read_file_order, _ = self._init_read_order()
         # If we have multiple files per worker, possibly shuffle the file read order
+        shuffle_buffer = []
         tokens = []
         while True:
             if self.shuffle:
@@ -146,13 +157,20 @@ class RawInfiniteDataset(IterableDataset):
                                     [self.start_token] + tokens[: self.seq_len - 2] + [self.end_token]
                                 )
                                 tokens = tokens[self.seq_len - 2 :]
-                                yield (tensor,)
+                                shuffle_buffer.append(tensor)
+                                if len(shuffle_buffer) == self.shuffle_buffer_len:
+                                    if self.shuffle:
+                                        random.shuffle(shuffle_buffer)
+                                    # Drain the shuffle buffer
+                                    for element in shuffle_buffer:
+                                        yield (element,)
+                                    shuffle_buffer = []
 
 
 class InfinitePreprocessedDataset(IterableDataset):
     """Infinite dataset on shards with multiple workers and preprocessing on-the-fly"""
 
-    def __init__(self, pattern: str, distribute=True, shuffle=True, get_data_fn=None):
+    def __init__(self, pattern: str, distribute=True, shuffle=True, get_data_fn=None, shuf_buf_len: int = 100):
         super().__init__()
         self.pattern = pattern
         self.samples = 0
@@ -160,6 +178,7 @@ class InfinitePreprocessedDataset(IterableDataset):
         self.world_size = 1
         self.shuffle = shuffle
         self.distribute = distribute
+        self.shuf_buf_len = shuf_buf_len
         self.get_data_fn = get_data_fn if get_data_fn else lambda x: x if x else None
         if torch.distributed.is_initialized() and distribute:
             self.rank = torch.distributed.get_rank()
@@ -197,6 +216,7 @@ class InfinitePreprocessedDataset(IterableDataset):
 
     def __iter__(self):
         files, read_file_order, _ = self._init_read_order()
+        shuf_buf = []
         while True:
             if self.shuffle:
                 random.shuffle(read_file_order)
@@ -207,4 +227,11 @@ class InfinitePreprocessedDataset(IterableDataset):
                     for sample in lines:
                         sample = self.get_data(sample.strip())
                         if sample:
-                            yield (sample,)
+                            shuffle_buffer.append(sample)
+                            if len(shuffle_buffer) == self.shuffle_buffer_len:
+                                if self.shuffle:
+                                    random.shuffle(shuffle_buffer)
+                                # Drain the shuffle buffer
+                                for element in shuffle_buffer:
+                                    yield (element,)
+                                shuffle_buffer = []
