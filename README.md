@@ -30,8 +30,13 @@ The library also supports fully preprocessed datasets, but there is no example f
 
 ### Wikipedia
 
-To pretrain on Wikipedia with this program, you'll need an XML wikipedia dump. This is usally named `enwiki-latest-pages-articles.xml.bz2` and can be found from the Wikipedia dump site.
+To pretrain on English Wikipedia with this program, you'll need an XML wikipedia dump.
+This is usually named `enwiki-latest-pages-articles.xml.bz2` and can be found from the [Wikipedia dump site](https://dumps.wikimedia.org/enwiki/latest/).
+For example, this should work for downloading:
 
+```
+wget https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2
+```
 You also need to use this repository: https://github.com/attardi/wikiextractor
 to extract the dumps.  Here is how I ran it for my example:
 
@@ -59,6 +64,20 @@ can add it using
 
 ```
 pip install .[examples]
+```
+
+## Completer REPL
+
+The [bert_completer](src/tfs/bert/examples/bert_completer.py) program allows you to type in masked strings and
+see how BERT would complete them.  When it starts, you can pass `--sample` in order to get sampling from the output,
+otherwise it uses the most likely values.  You can switch between the 2 modes at runtime using:
+
+```
+BERT>> :sample
+```
+or 
+```
+BERT>> :max
 ```
 
 
