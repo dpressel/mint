@@ -1,13 +1,14 @@
 import torch
-from torch.utils.data import IterableDataset
+from torch.utils.data import IterableDataset, TensorDataset
 import random
 import logging
 import glob
 import gzip
 import bz2
 import json
-from typing import Callable
-from typing import Optional
+from typing import Callable, Optional, List
+
+
 logger = logging.getLogger('tfs')
 
 
@@ -76,16 +77,16 @@ class RawInfiniteDataset(IterableDataset):
     """
 
     def __init__(
-        self,
-        pattern: str,
-        tokenizer,
-        distribute=True,
-        shuffle=True,
-        prefix='[CLS]',
-        suffix='[SEP]',
-        seq_len: int = 512,
-        get_data_fn: Optional[Callable]=None,
-        shuf_buf_len: int = 100,
+            self,
+            pattern: str,
+            tokenizer,
+            distribute=True,
+            shuffle=True,
+            prefix='[CLS]',
+            suffix='[SEP]',
+            seq_len: int = 512,
+            get_data_fn: Optional[Callable] = None,
+            shuf_buf_len: int = 100,
     ):
         super().__init__()
         self.get_data_fn = get_data_fn if get_data_fn else lambda x: x if x else None
@@ -156,7 +157,7 @@ class RawInfiniteDataset(IterableDataset):
                                 tensor = torch.tensor(
                                     [self.start_token] + tokens[: self.seq_len - 2] + [self.end_token]
                                 )
-                                tokens = tokens[self.seq_len - 2 :]
+                                tokens = tokens[self.seq_len - 2:]
                                 shuffle_buffer.append(tensor)
                                 if len(shuffle_buffer) == self.shuffle_buffer_len:
                                     if self.shuffle:
@@ -235,3 +236,38 @@ class InfinitePreprocessedDataset(IterableDataset):
                                 for element in shuffle_buffer:
                                     yield (element,)
                                 shuffle_buffer = []
+
+
+def read_cls_dataset(file: str, tokenizer, pad_index=0, get_data_fn: Optional[Callable] = None,
+                     splitter_fn: Callable = str.split, max_seq_len=512, label_list: Optional[List[str]] = None) -> TensorDataset:
+    def read_space_delim_line(line: str):
+        toks = line.split()
+        label = toks[0]
+        tokens = ' '.join(toks[1:])
+        return label, tokens
+
+    if get_data_fn is None:
+        get_data_fn = read_space_delim_line
+
+
+    label2index = {} if not label_list else {k: i for i, k in enumerate(label_list)}
+    label_offset = len(label2index)
+    x_tensor = []
+    y_tensor = []
+    with TextFile(file) as rf:
+        for line in rf:
+            label, example_str = get_data_fn(line.strip())
+            if label not in label2index:
+                label2index[label] = label_offset
+                label_offset += 1
+            tokens = torch.tensor(tokenizer.encode(' '.join(splitter_fn(example_str))).ids)
+            padded = torch.full((max_seq_len,), pad_index, dtype=tokens.dtype)
+            padded[:len(tokens)] = tokens
+            x_tensor.append(padded)
+            y_tensor.append(label2index[label])
+        x_tensor = torch.stack(x_tensor)
+        y_tensor = torch.tensor(y_tensor, dtype=torch.long)
+    label_list = [0] * label_offset
+    for label, idx in label2index.items():
+        label_list[idx] = label
+    return TensorDataset(x_tensor, y_tensor), label_list
