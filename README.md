@@ -64,12 +64,12 @@ There is a regex used in GPT, which is also close to BERTs preprocessing, which 
 
 ## Fine-tuning
 
-The [tune_bert_for_cls](src/tfs/bert/examples/tune_bert_for_cls.py) program is a simple example of fine-tuning
+The [tune_bert_for_cls](src/tfs/examples/tune_bert_for_cls.py) program is a simple example of fine-tuning
 our BERT implementation from scratch. 
 
 ## Completer REPL
 
-The [bert_completer](src/tfs/bert/examples/bert_completer.py) program allows you to type in masked strings and
+The [bert_completer](src/tfs/examples/bert_completer.py) program allows you to type in masked strings and
 see how BERT would complete them.  When it starts, you can pass `--sample` in order to get sampling from the output,
 otherwise it uses the most likely values.  You can switch between the 2 modes at runtime using:
 
