@@ -28,9 +28,9 @@ class BertLearnedPositionalEmbedding(nn.Module):
     def forward(self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Takes a tensor of shape `[B, T]` and an optional `token_type` of same shape
 
-        :param x:
-        :param token_type:
-        :return:
+        :param x: A tensor of word one-hots, shape `[B, T]`
+        :param token_type: An optional tensor of 0 or 1, shape `[B, T]` to identify if first segment or second
+        :return: The sum of the positional, word and token type embeddings
         """
         embed = self.word_embeddings(x)
 
@@ -52,7 +52,7 @@ class BertLearnedPositionalEmbedding(nn.Module):
 
 
 class MultiHeadedAttention(nn.Module):
-    """Multi-headed attention
+    """Multi-headed attention implementation using scaled dot product
 
     Converts the input tensor to 3 low-order projections, query, key and value and performs
     multi-headed scaled dot-product attention on them following the Vaswani paper.  The result
@@ -89,7 +89,7 @@ class MultiHeadedAttention(nn.Module):
         key_vec = self.key(x).view(B, T, self.num_heads, -1).transpose(1, 2)
         value_vec = self.value(x).view(B, T, self.num_heads, -1).transpose(1, 2)
 
-        # (B, H, T_q, D) x (B, H, D, T_k) = (B, H, T_q, T_k)
+        # [B, H, T_q, D] x [B, H, D, T_k] = [B, H, T_q, T_k]
         dot_prod = (query_vec @ key_vec.transpose(-1, -2)) * self.scale
 
         if mask is not None:
@@ -403,7 +403,7 @@ class TransformerProjectionEncoder(TransformerEncoder):
 
         :param x: A one-hot (long) tensor of shape `[B, T]`
         :param mask: An optional mask to take in for attention
-        :param token_type:
+        :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
         :return:
         """
         y = self.embeddings(x, token_type)
@@ -476,11 +476,11 @@ class TransformerMLM(TransformerEncoder):
     def forward(
         self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
-        """
+        """Apply the encoder from the parent, followed by penultimate and output projection
 
-        :param x:
-        :param mask:
-        :param token_type:
+        :param x: A one-hot (long) tensor of shape `[B, T]`
+        :param mask: An optional mask to take in for attention
+        :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
         :return:
         """
         y = super().forward(x)

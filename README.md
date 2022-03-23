@@ -37,14 +37,20 @@ For example, this should work for downloading:
 ```
 wget https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2
 ```
-You also need to use this repository: https://github.com/attardi/wikiextractor
-to extract the dumps.  Here is how I ran it for my example:
+You also need to use this repository:
 
 ```
-python WikiExtractor.py ${INPUT_PATH}/enwiki-latest-pages-articles.xml.bz2 \
+git clone https://github.com/attardi/wikiextractor
+git checkout 16186e290d9eb0eb3a3784c6c0635a9ed7e855c3
+
+```
+Here is how I ran it for my example:
+
+```
+python -m WikiExtractor.py ${INPUT}/enwiki-latest-pages-articles.xml.bz2 \
        -q --json \
        --processes 7 \
-       --output ${OUTPUT_PATH}/enwiki-extracted \
+       --output ${OUTPUT}/enwiki-extracted \
        --bytes 100M \
        --compress \
        --links \
