@@ -163,11 +163,11 @@ class SingleDeviceLMTrainer:
         eval_iter = iter(eval_data_loader)
         while self.global_step < self.total_steps:
             num_iters = min(iters_left, train_cycle_size)
-            metrics = self._train_some(train_iter, num_iters, save_iter, model_base)
+            metrics = self.train_some(train_iter, num_iters, save_iter, model_base)
             # Log our metrics
             logging.info(metrics)
 
-            metrics = self._eval_some(eval_iter, eval_cycle_size)
+            metrics = self.eval_some(eval_iter, eval_cycle_size)
             logging.info(metrics)
 
     def show_lr_plan(self, total_steps: Optional[int] = None):
@@ -257,7 +257,7 @@ class SingleDeviceLMTrainer:
             # that when we break out and save
             save_iter = len(train_data_loader) // saves_per_epoch
             # Train some steps using our iterator
-            metrics = self._train_some(iter(train_data_loader), num_iters, save_iter, model_base)
+            metrics = self.train_some(iter(train_data_loader), num_iters, save_iter, model_base)
             # Log our metrics
             logging.info(metrics)
 
@@ -270,7 +270,7 @@ class SingleDeviceLMTrainer:
                 collate_fn=self.collate_function,
             )
             num_iters = len(eval_data_loader)
-            metrics = self._eval_some(iter(eval_data_loader), num_iters)
+            metrics = self.eval_some(iter(eval_data_loader), num_iters)
             logging.info(metrics)
             self._save_checkpoint(model_base)
             current_epoch += 1
@@ -297,7 +297,7 @@ class SingleDeviceLMTrainer:
             return self._warmup(global_step)
         return self._decay(global_step - total_steps_lr1)
 
-    def _train_some(self, data_iter, num_iters, save_iter, model_base):
+    def train_some(self, data_iter, num_iters, save_iter, model_base):
         """Train for some number of steps with an iterator.  The iterator should have at least that many steps available
 
         This can be called externally as an epoch runner or just some number of fixed steps.
@@ -353,7 +353,7 @@ class SingleDeviceLMTrainer:
         metrics['train_ppl'] = train_token_ppl
         return metrics
 
-    def _eval_some(self, data_iter, num_iters):
+    def eval_some(self, data_iter, num_iters):
         """Evaluate some data
 
         :param data_iter: A data iterator
@@ -568,11 +568,11 @@ class DistributedLMTrainer:
         eval_iter = iter(eval_data_loader)
         while self.global_step < self.total_steps:
             num_iters = min(local_iters_left, local_iters_per_cycle)
-            metrics = self._train_some(train_iter, num_iters, save_iter, model_base, log_updates_per_train_cycle)
+            metrics = self.train_some(train_iter, num_iters, save_iter, model_base, log_updates_per_train_cycle)
             # Log our metrics
             logging.info(metrics)
             if self.local_rank < 1:
-                metrics = self._eval_some(eval_iter, eval_cycle_size)
+                metrics = self.eval_some(eval_iter, eval_cycle_size)
                 logging.info(metrics)
 
     def show_lr_plan(self, total_steps: Optional[int] = None):
@@ -627,7 +627,7 @@ class DistributedLMTrainer:
             return self._warmup(global_step)
         return self._decay(global_step - total_steps_lr1)
 
-    def _train_some(self, data_iter, num_iters, save_iter, model_base, update_iter=None):
+    def train_some(self, data_iter, num_iters, save_iter, model_base, update_iter=None):
         """Train for some number of steps with an iterator.  The iterator should have at least that many steps available
 
         This can be called externally as an epoch runner or just some number of fixed steps.
@@ -688,7 +688,7 @@ class DistributedLMTrainer:
         metrics['train_ppl'] = train_token_ppl
         return metrics
 
-    def _eval_some(self, data_iter, num_iters):
+    def eval_some(self, data_iter, num_iters):
         """Evaluate some data
 
         :param data_iter: A data iterator
