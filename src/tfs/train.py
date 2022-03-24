@@ -479,7 +479,9 @@ class DistributedLMTrainer:
         self.num_valid_workers = num_valid_workers
         self.num_gpus = get_num_gpus_multiworker()
         self.device, self.local_rank = init_distributed(local_rank)
-        logger.info(f"Using {self.num_gpus} GPUs in this job.")
+
+        if self.local_rank < 1:
+            logger.info("Using %d GPUs in this job.", self.num_gpus)
 
         self.model = self.model.to(self.device)
         self.loss_function = self.loss_function.to(self.device)
@@ -491,7 +493,9 @@ class DistributedLMTrainer:
         self.batch_size = batch_size
         self.total_steps = total_steps
         self.collate_function = collate_function
-        logger.info("Model has {:,} parameters".format(sum(p.numel() for p in model.parameters() if p.requires_grad)))
+
+        if self.local_rank < 1:
+            logger.info("Model has {:,} parameters".format(sum(p.numel() for p in model.parameters() if p.requires_grad)))
 
     def __str__(self):
         return '\n\t'.join(
@@ -550,14 +554,16 @@ class DistributedLMTrainer:
 
         local_iters_left = self.total_steps - self.global_step
         current_cycle = 0 if self.global_step == 0 else (self.global_step // train_cycle_size)
-        logging.info(
-            'steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]',
-            train_cycle_size,
-            self.global_step,
-            self.total_steps,
-            current_cycle,
-            saves_per_cycle,
-        )
+
+        if self.local_rank < 1:
+            logging.info(
+                'steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]',
+                train_cycle_size,
+                self.global_step,
+                self.total_steps,
+                current_cycle,
+                saves_per_cycle,
+            )
         train_iter = iter(train_data_loader)
         eval_iter = iter(eval_data_loader)
         while self.global_step < self.total_steps:
@@ -655,7 +661,7 @@ class DistributedLMTrainer:
             avg_loss.update(loss.item())
 
             if (iters + 1) % update_iter == 0:
-                logger.info(f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
+                logger.info(f"({self.local_rank}) global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
 
             # Only save on master
             if self.local_rank < 1 and (iters + 1) % save_iter == 0:
@@ -664,7 +670,7 @@ class DistributedLMTrainer:
             self.optimizer.step()
             self.global_step += 1
             if self.global_step == self.total_steps:
-                logger.info(f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}")
+                logger.info(f"({self.local_rank}) global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}")
                 if self.local_rank < 1:
                     self._save_checkpoint(model_base)
                 break
@@ -693,16 +699,14 @@ class DistributedLMTrainer:
         avg_loss = Average('average_valid_loss')
         start = time.time()
         metrics = {}
-        progress = tqdm(range(num_iters), total=num_iters)
         with torch.no_grad():
-            for iters in progress:
+            for iters in range(num_iters):
                 (x, y) = next(data_iter)
                 x = x.to(device=self.device)
                 y = y.to(device=self.device)
                 logits = self.model(x)
                 loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
                 avg_loss.update(loss.item())
-                progress.set_description(f"validation steps {iters}: loss {loss.item():.5f}. lr {self.current_lr:e}")
         valid_token_loss = avg_loss.avg
         valid_token_ppl = math.exp(valid_token_loss)
 
@@ -717,7 +721,7 @@ class DistributedLMTrainer:
 
     def _save_checkpoint(self, model_base: str):
         checkpoint_name = self._checkpoint_for(model_base)
-        logging.debug('Saving checkpoint [%s]', checkpoint_name)
+        logging.debug('(%d) saving checkpoint [%s]', self.local_rank, checkpoint_name)
         model_ = self.model.module if hasattr(self.model, 'module') else self.model
         torch.save(model_.state_dict(), checkpoint_name + '.pth')
 

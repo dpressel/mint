@@ -4,12 +4,13 @@ import torch
 from torch.utils.data import Dataset
 from tfs.bert import BertCreator, NoisingCollator, TransformerMLM
 from tfs.train import DistributedLMTrainer, SingleDeviceLMTrainer
-from tfs.data import RawInfiniteDataset, wikipedia_parser, gpt2_splitter
+from tfs.data import RawInfiniteDataset, gpt2_splitter
 from tokenizers import BertWordPieceTokenizer
-
+import json
 import os
 
 logger = logging.getLogger(__file__)
+
 
 """Pre-train a BERT/RoBERTa model in PyTorch on all of wikipedia via https://github.com/attardi/wikiextractor
 
@@ -17,6 +18,23 @@ We will process the data on-the-fly from the readers, and shard over multiple wo
 train with the SimpleTrainer's train_steps() function
 
 """
+
+def wikipedia_parser(splitter=None):
+    from bs4 import BeautifulSoup
+
+    tokenizer = splitter if splitter else str.split
+
+    def get_doc(line):
+        line = json.loads(line)['text']
+        text = BeautifulSoup(line, features="lxml")
+        # This is a trivial way to replace, we will just sample other surface terms and use those
+        for link in text.find_all('a'):
+            surface = link.get_text()
+            link.replace_with(surface)
+        text = ' '.join(tokenizer(text.get_text()))
+        return text
+
+    return get_doc
 
 
 def create_sharded_dataset(
