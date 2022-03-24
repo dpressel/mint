@@ -389,8 +389,7 @@ class SingleDeviceLMTrainer:
     def _save_checkpoint(self, model_base: str):
         checkpoint_name = self._checkpoint_for(model_base)
         logging.debug('Saving checkpoint [%s]', checkpoint_name)
-        model_ = self.model.module if hasattr(self.model, 'module') else self.model
-        torch.save(model_.state_dict(), checkpoint_name + '.pth')
+        torch.save(self.model.state_dict(), checkpoint_name + '.pth')
 
 
 def init_distributed(local_rank):
@@ -495,7 +494,9 @@ class DistributedLMTrainer:
         self.collate_function = collate_function
 
         if self.local_rank < 1:
-            logger.info("Model has {:,} parameters".format(sum(p.numel() for p in model.parameters() if p.requires_grad)))
+            logger.info(
+                "Model has {:,} parameters".format(sum(p.numel() for p in model.parameters() if p.requires_grad))
+            )
 
     def __str__(self):
         return '\n\t'.join(
@@ -661,7 +662,9 @@ class DistributedLMTrainer:
             avg_loss.update(loss.item())
 
             if (iters + 1) % update_iter == 0:
-                logger.info(f"({self.local_rank}) global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
+                logger.info(
+                    f"({self.local_rank}) global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
+                )
 
             # Only save on master
             if self.local_rank < 1 and (iters + 1) % save_iter == 0:
@@ -670,7 +673,9 @@ class DistributedLMTrainer:
             self.optimizer.step()
             self.global_step += 1
             if self.global_step == self.total_steps:
-                logger.info(f"({self.local_rank}) global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}")
+                logger.info(
+                    f"({self.local_rank}) global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
+                )
                 if self.local_rank < 1:
                     self._save_checkpoint(model_base)
                 break

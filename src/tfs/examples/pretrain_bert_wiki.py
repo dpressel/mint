@@ -19,6 +19,7 @@ train with the SimpleTrainer's train_steps() function
 
 """
 
+
 def wikipedia_parser(splitter=None):
     from bs4 import BeautifulSoup
 

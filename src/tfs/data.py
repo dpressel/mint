@@ -31,7 +31,6 @@ def gpt2_splitter():
     return lambda text: [w.strip() for w in regex.findall(BPE_PATTERN, text)]
 
 
-
 class TextFile:
     def __init__(self, filename):
         self.filename = filename
