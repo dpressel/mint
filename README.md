@@ -1,5 +1,7 @@
 # Transformers from Scratch!
 
+## A Tiny Library for Transformers from the ground up
+
 Minimal PyTorch implementation of common Transformer architectures (starting with BERT).
 There is library code that accompanies the tutorials, which explain how to build these architectures from the ground up.
 
