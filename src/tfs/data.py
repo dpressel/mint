@@ -4,7 +4,7 @@ import random
 import logging
 import glob
 import gzip
-
+import os
 import json
 from typing import Callable, Optional, List
 
@@ -96,7 +96,8 @@ class RawInfiniteDataset(IterableDataset):
         self.tokenizer = tokenizer
         self.start_token = self.tokenizer.token_to_id(prefix)
         self.end_token = self.tokenizer.token_to_id(suffix)
-        self.pattern = pattern
+        self.pattern = pattern if not os.path.isdir(pattern) else os.path.join(pattern, "*")
+
         self.samples = 0
         self.rank = 0
         self.world_size = 1
@@ -136,7 +137,7 @@ class RawInfiniteDataset(IterableDataset):
                     + " This might mean that you are passing an incorrect training or validation directory"
                 )
             else:
-                raise Exception(f"No files of pattern {self.pattern} were found in {self.directory}!")
+                raise Exception(f"No files of pattern {self.pattern} were found!")
         return files, read_file_order, node_worker_id
 
     def __iter__(self):

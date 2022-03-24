@@ -87,7 +87,9 @@ def main():
     parser.add_argument("--train_cycle_size", type=int, default=1000, help="The many training steps to run before eval")
     parser.add_argument("--eval_cycle_size", type=int, default=200, help="How many steps to evaluate each time")
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
-    parser.add_argument("--plot_lr_plan", action="store_true", help="Shows the learning rate curve (requires matplotlib)")
+    parser.add_argument(
+        "--plot_lr_plan", action="store_true", help="Shows the learning rate curve (requires matplotlib)"
+    )
     parser.add_argument(
         "--local_rank",
         type=int,

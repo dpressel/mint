@@ -32,30 +32,30 @@ class Average:
         fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
         return fmtstr.format(**self.__dict__)
 
+
 class SingleDeviceLMTrainer:
-    """Simple trainer that works on a single machine/device
-    """
+    """Simple trainer that works on a single machine/device"""
 
     def __init__(
-            self,
-            model,
-            lr: float = 1.0e-4,
-            batch_size: int = 256,
-            weight_decay: float = 1.0e-2,
-            warmup_fract: int = 0.1,
-            plateau_fract: int = 0.0,
-            decay_type: str = 'cosine',
-            total_steps: Optional[int] = None,
-            global_step: int = 0,
-            alpha_decay: float = 0.0,
-            betas: Tuple[float] = (0.9, 0.98),
-            eps=1e-08,
-            grad_clip: float = 1.0,
-            num_train_workers=4,
-            num_valid_workers=1,
-            dont_decay_weights: Optional[List[str]] = None,
-            collate_function: Optional[Callable] = None,
-            **kwargs,
+        self,
+        model,
+        lr: float = 1.0e-4,
+        batch_size: int = 256,
+        weight_decay: float = 1.0e-2,
+        warmup_fract: int = 0.1,
+        plateau_fract: int = 0.0,
+        decay_type: str = 'cosine',
+        total_steps: Optional[int] = None,
+        global_step: int = 0,
+        alpha_decay: float = 0.0,
+        betas: Tuple[float] = (0.9, 0.98),
+        eps=1e-08,
+        grad_clip: float = 1.0,
+        num_train_workers=4,
+        num_valid_workers=1,
+        dont_decay_weights: Optional[List[str]] = None,
+        collate_function: Optional[Callable] = None,
+        **kwargs,
     ):
 
         if weight_decay == 0.0:
@@ -106,14 +106,14 @@ class SingleDeviceLMTrainer:
         return steps_per_epoch
 
     def train_steps(
-            self,
-            train_dataset: Dataset,
-            eval_dataset: Dataset,
-            model_base: str,
-            num_steps: int = 250_000,
-            saves_per_cycle: int = 1,
-            train_cycle_size: int = 10000,
-            eval_cycle_size: int = 2500,
+        self,
+        train_dataset: Dataset,
+        eval_dataset: Dataset,
+        model_base: str,
+        num_steps: int = 250_000,
+        saves_per_cycle: int = 1,
+        train_cycle_size: int = 10000,
+        eval_cycle_size: int = 2500,
     ):
         """Train for a fixed number of steps using an infinite dataset
 
@@ -149,7 +149,7 @@ class SingleDeviceLMTrainer:
 
         self.total_steps = num_steps
         save_iter = train_cycle_size // saves_per_cycle
-        iters_left = (self.total_steps - self.global_step)
+        iters_left = self.total_steps - self.global_step
         current_cycle = 0 if self.global_step == 0 else (self.global_step // train_cycle_size)
         logging.info(
             'steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]',
@@ -201,12 +201,12 @@ class SingleDeviceLMTrainer:
         plt.show()
 
     def train_epochs(
-            self,
-            train_dataset: Dataset,
-            eval_dataset: Dataset,
-            model_base: str,
-            num_epochs: int = 1,
-            saves_per_epoch: int = 1,
+        self,
+        train_dataset: Dataset,
+        eval_dataset: Dataset,
+        model_base: str,
+        num_epochs: int = 1,
+        saves_per_epoch: int = 1,
     ):
         """Epoch training interface for trainer for Map-style Datasets
 
@@ -342,9 +342,7 @@ class SingleDeviceLMTrainer:
             for p in self.optimizer.param_groups:
                 p["lr"] = self.current_lr
 
-            progress.set_description(
-                f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
-            )
+            progress.set_description(f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}")
 
         # How much time elapsed in minutes
         elapsed = (time.time() - start) / 60
@@ -435,26 +433,26 @@ class DistributedLMTrainer:
     """
 
     def __init__(
-            self,
-            model,
-            lr: float = 1.0e-4,
-            batch_size: int = 256,
-            weight_decay: float = 1.0e-2,
-            warmup_fract: int = 0.1,
-            plateau_fract: int = 0.0,
-            decay_type: str = 'cosine',
-            total_steps: Optional[int] = None,
-            global_step: int = 0,
-            alpha_decay: float = 0.0,
-            betas: Tuple[float] = (0.9, 0.98),
-            eps=1e-08,
-            grad_clip: float = 1.0,
-            local_rank=-1,
-            num_train_workers=4,
-            num_valid_workers=1,
-            dont_decay_weights: Optional[List[str]] = None,
-            collate_function: Optional[Callable] = None,
-            **kwargs,
+        self,
+        model,
+        lr: float = 1.0e-4,
+        batch_size: int = 256,
+        weight_decay: float = 1.0e-2,
+        warmup_fract: int = 0.1,
+        plateau_fract: int = 0.0,
+        decay_type: str = 'cosine',
+        total_steps: Optional[int] = None,
+        global_step: int = 0,
+        alpha_decay: float = 0.0,
+        betas: Tuple[float] = (0.9, 0.98),
+        eps=1e-08,
+        grad_clip: float = 1.0,
+        local_rank=-1,
+        num_train_workers=4,
+        num_valid_workers=1,
+        dont_decay_weights: Optional[List[str]] = None,
+        collate_function: Optional[Callable] = None,
+        **kwargs,
     ):
 
         if weight_decay == 0.0:
@@ -502,15 +500,15 @@ class DistributedLMTrainer:
         )
 
     def train_steps(
-            self,
-            train_dataset: Dataset,
-            eval_dataset: Dataset,
-            model_base: str,
-            num_steps: int = 250_000,
-            saves_per_cycle: int = 1,
-            train_cycle_size: int = 10000,
-            eval_cycle_size: int = 2500,
-            log_updates_per_train_cycle: Optional[int] = None,
+        self,
+        train_dataset: Dataset,
+        eval_dataset: Dataset,
+        model_base: str,
+        num_steps: int = 250_000,
+        saves_per_cycle: int = 1,
+        train_cycle_size: int = 10000,
+        eval_cycle_size: int = 2500,
+        log_updates_per_train_cycle: Optional[int] = None,
     ):
         """Train for a fixed number of steps using Infinite datasets
 
@@ -550,7 +548,7 @@ class DistributedLMTrainer:
         local_iters_per_cycle = train_cycle_size
         save_iter = local_iters_per_cycle // saves_per_cycle
 
-        local_iters_left = (self.total_steps - self.global_step)
+        local_iters_left = self.total_steps - self.global_step
         current_cycle = 0 if self.global_step == 0 else (self.global_step // train_cycle_size)
         logging.info(
             'steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]',
@@ -657,9 +655,7 @@ class DistributedLMTrainer:
             avg_loss.update(loss.item())
 
             if (iters + 1) % update_iter == 0:
-                logger.info(
-                    f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
-                )
+                logger.info(f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
 
             # Only save on master
             if self.local_rank < 1 and (iters + 1) % save_iter == 0:
@@ -668,9 +664,7 @@ class DistributedLMTrainer:
             self.optimizer.step()
             self.global_step += 1
             if self.global_step == self.total_steps:
-                logger.info(
-                    f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
-                )
+                logger.info(f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}")
                 if self.local_rank < 1:
                     self._save_checkpoint(model_base)
                 break
