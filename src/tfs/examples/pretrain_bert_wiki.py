@@ -31,7 +31,6 @@ def create_sharded_dataset(
         glob_path,
         tokenizer,
         is_train,
-        is_train,
         prefix=start_token,
         suffix=end_token,
         seq_len=seq_len,
@@ -88,6 +87,7 @@ def main():
     parser.add_argument("--train_cycle_size", type=int, default=1000, help="The many training steps to run before eval")
     parser.add_argument("--eval_cycle_size", type=int, default=200, help="How many steps to evaluate each time")
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
+    parser.add_argument("--plot_lr_plan", action="store_true", help="Shows the learning rate curve (requires matplotlib)")
     parser.add_argument(
         "--local_rank",
         type=int,
@@ -127,7 +127,8 @@ def main():
         **vars(args),
     )
     logger.info(trainer)
-    trainer.show_lr_plan(args.num_steps)
+    if args.plot_lr_plan:
+        trainer.show_lr_plan(args.num_steps)
 
     train_dataset = create_sharded_dataset(tokenizer, args.train_file, True)
     valid_dataset = create_sharded_dataset(tokenizer, args.valid_file, False)
