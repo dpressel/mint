@@ -4,12 +4,16 @@ import random
 import logging
 import glob
 import gzip
-import bz2
+
 import json
 from typing import Callable, Optional, List
 
 
 logger = logging.getLogger('tfs')
+try:
+    import bz2
+except:
+    logger.warning("Could not import bzip2 decompression lib")
 
 
 def jsonl_parser(field: str = 'x') -> Callable:

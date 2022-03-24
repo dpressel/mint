@@ -58,6 +58,19 @@ python -m WikiExtractor.py ${INPUT}/enwiki-latest-pages-articles.xml.bz2 \
        --min_text_length 0 \
        --filter_disambig_pages
 ```
+Regarding the command line above, only use `--compress` if you have bzip2 on your system and your Python can
+
+```python
+import bz2
+```
+
+In each target generated (e.g. AA, AB, AC), we are going to rename with a prefix (e.g. AA):
+
+```
+for file in *.bz2; do mv "$file" "AA_$file"; done;
+```
+We can then copy these to a single directory, or split them however we would like into train and test
+
 
 Unlike Wikitext-2, the data in Wikipedia doesnt use any tokenization upfront.
 There is a regex used in GPT, which is also close to BERTs preprocessing, which we use in this example.
