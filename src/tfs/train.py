@@ -166,13 +166,15 @@ class SimpleLMTrainer:
             current_cycle,
             saves_per_cycle,
         )
+        train_iter = iter(train_data_loader)
+        eval_iter = iter(eval_data_loader)
         while self.global_step < self.total_steps:
             num_iters = min(iters_left, iters_per_cycle)
-            metrics = self._train_some(iter(train_data_loader), num_iters, save_iter, model_base)
+            metrics = self._train_some(train_iter, num_iters, save_iter, model_base)
             # Log our metrics
             logging.info(metrics)
 
-            metrics = self._eval_some(iter(eval_data_loader), eval_cycle_size)
+            metrics = self._eval_some(eval_iter, eval_cycle_size)
             logging.info(metrics)
 
     def show_lr_plan(self, total_steps: Optional[int] = None):
@@ -311,9 +313,9 @@ class SimpleLMTrainer:
 
         :param data_iter: An iterator wrapping a DataLoader
         :param num_iters: The number of iterations to get from the data loader
-        :param save_iter:
-        :param model_base:
-        :return:
+        :param save_iter: How many iterations before we save a checkpoint
+        :param model_base: The model base for writing checkpoints
+        :return: The training metrics
         """
         avg_loss = Average('average_train_loss')
         metrics = {}
@@ -334,6 +336,7 @@ class SimpleLMTrainer:
             if (iters + 1) % save_iter == 0:
                 self._save_checkpoint(model_base)
 
+            # We need to accumulate the gradients
             if (iters + 1) % self.grad_accum == 0:
                 self.optimizer.step()
                 self.global_step += 1
@@ -362,6 +365,12 @@ class SimpleLMTrainer:
         return metrics
 
     def _eval_some(self, data_iter, num_iters):
+        """Evaluate some data
+
+        :param data_iter: A data iterator
+        :param num_iters: The number of iterations to train for
+        :return: The validation metrics
+        """
         self.model.eval()
         avg_loss = Average('average_valid_loss')
         start = time.time()

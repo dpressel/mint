@@ -46,9 +46,11 @@ def valid_epoch(epoch, loss_function, model, valid_loader, device, phase="valid"
 
             valid_acc = 100.0 * valid_correct / valid_total
             progress.set_description(
-                f"{phase} epoch {epoch + 1}, step {i}: loss {valid_loss.avg:.3f}, accuracy {valid_acc:.2f}%")
+                f"{phase} epoch {epoch + 1}, step {i}: loss {valid_loss.avg:.3f}, accuracy {valid_acc:.2f}%"
+            )
 
     return valid_correct / valid_total
+
 
 def train_epoch(epoch, loss_function, model, optimizer, train_loader, device):
     model.train()
@@ -71,7 +73,9 @@ def train_epoch(epoch, loss_function, model, optimizer, train_loader, device):
         train_total += y.shape[0]
         train_acc = 100.0 * (train_correct / train_total)
         progress.set_description(
-            f"train epoch {epoch + 1}, step {i}: loss {train_loss.avg:.3f}, accuracy {train_acc:.2f}%")
+            f"train epoch {epoch + 1}, step {i}: loss {train_loss.avg:.3f}, accuracy {train_acc:.2f}%"
+        )
+
 
 def trim_to_shortest_len(batch):
     max_len = max((example[0] != 0).sum() for example in batch)
@@ -107,15 +111,24 @@ def main():
     logging.basicConfig(level=logging.INFO)
     tokenizer = BertWordPieceTokenizer(args.vocab_file, lowercase=args.lowercase)
     # TODO: read the pad_index in
-    train_set, labels = read_cls_dataset(args.train_file, tokenizer, pad_index=0, splitter_fn=gpt2_splitter(),
-                                         max_seq_len=args.max_seq_len)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True,
-                                               collate_fn=trim_to_shortest_len)
+    train_set, labels = read_cls_dataset(
+        args.train_file, tokenizer, pad_index=0, splitter_fn=gpt2_splitter(), max_seq_len=args.max_seq_len
+    )
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=args.batch_size, shuffle=True, collate_fn=trim_to_shortest_len
+    )
     logger.info(labels)
-    valid_set, labels = read_cls_dataset(args.valid_file, tokenizer, pad_index=0, splitter_fn=gpt2_splitter(),
-                                         max_seq_len=args.max_seq_len, label_list=labels)
-    valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=args.batch_size, shuffle=False,
-                                               collate_fn=trim_to_shortest_len)
+    valid_set, labels = read_cls_dataset(
+        args.valid_file,
+        tokenizer,
+        pad_index=0,
+        splitter_fn=gpt2_splitter(),
+        max_seq_len=args.max_seq_len,
+        label_list=labels,
+    )
+    valid_loader = torch.utils.data.DataLoader(
+        valid_set, batch_size=args.batch_size, shuffle=False, collate_fn=trim_to_shortest_len
+    )
 
     num_classes = len(labels)
     output_layer = torch.nn.Linear(args.hidden_size, num_classes)
@@ -142,12 +155,19 @@ def main():
         logger.info("No test file provided, exiting")
         sys.exit(1)
 
-    test_set, final_labels = read_cls_dataset(args.test_file, tokenizer, pad_index=0, splitter_fn=gpt2_splitter(),
-                                              max_seq_len=args.max_seq_len, label_list=labels)
+    test_set, final_labels = read_cls_dataset(
+        args.test_file,
+        tokenizer,
+        pad_index=0,
+        splitter_fn=gpt2_splitter(),
+        max_seq_len=args.max_seq_len,
+        label_list=labels,
+    )
     if len(final_labels) != num_classes:
         raise Exception("The test set adds new classes with no samples in the training or validation")
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False,
-                                              collate_fn=trim_to_shortest_len)
+    test_loader = torch.utils.data.DataLoader(
+        test_set, batch_size=args.batch_size, shuffle=False, collate_fn=trim_to_shortest_len
+    )
 
     best_state = torch.load(checkpoint_name)
     model.load_state_dict(best_state)

@@ -77,16 +77,16 @@ class RawInfiniteDataset(IterableDataset):
     """
 
     def __init__(
-            self,
-            pattern: str,
-            tokenizer,
-            distribute=True,
-            shuffle=True,
-            prefix='[CLS]',
-            suffix='[SEP]',
-            seq_len: int = 512,
-            get_data_fn: Optional[Callable] = None,
-            shuf_buf_len: int = 100,
+        self,
+        pattern: str,
+        tokenizer,
+        distribute=True,
+        shuffle=True,
+        prefix='[CLS]',
+        suffix='[SEP]',
+        seq_len: int = 512,
+        get_data_fn: Optional[Callable] = None,
+        shuf_buf_len: int = 100,
     ):
         super().__init__()
         self.get_data_fn = get_data_fn if get_data_fn else lambda x: x if x else None
@@ -157,7 +157,7 @@ class RawInfiniteDataset(IterableDataset):
                                 tensor = torch.tensor(
                                     [self.start_token] + tokens[: self.seq_len - 2] + [self.end_token]
                                 )
-                                tokens = tokens[self.seq_len - 2:]
+                                tokens = tokens[self.seq_len - 2 :]
                                 shuffle_buffer.append(tensor)
                                 if len(shuffle_buffer) == self.shuffle_buffer_len:
                                     if self.shuffle:
@@ -238,8 +238,15 @@ class InfinitePreprocessedDataset(IterableDataset):
                                 shuffle_buffer = []
 
 
-def read_cls_dataset(file: str, tokenizer, pad_index=0, get_data_fn: Optional[Callable] = None,
-                     splitter_fn: Callable = str.split, max_seq_len=512, label_list: Optional[List[str]] = None) -> TensorDataset:
+def read_cls_dataset(
+    file: str,
+    tokenizer,
+    pad_index=0,
+    get_data_fn: Optional[Callable] = None,
+    splitter_fn: Callable = str.split,
+    max_seq_len=512,
+    label_list: Optional[List[str]] = None,
+) -> TensorDataset:
     def read_space_delim_line(line: str):
         toks = line.split()
         label = toks[0]
@@ -248,7 +255,6 @@ def read_cls_dataset(file: str, tokenizer, pad_index=0, get_data_fn: Optional[Ca
 
     if get_data_fn is None:
         get_data_fn = read_space_delim_line
-
 
     label2index = {} if not label_list else {k: i for i, k in enumerate(label_list)}
     label_offset = len(label2index)
@@ -262,7 +268,7 @@ def read_cls_dataset(file: str, tokenizer, pad_index=0, get_data_fn: Optional[Ca
                 label_offset += 1
             tokens = torch.tensor(tokenizer.encode(' '.join(splitter_fn(example_str))).ids)
             padded = torch.full((max_seq_len,), pad_index, dtype=tokens.dtype)
-            padded[:len(tokens)] = tokens
+            padded[: len(tokens)] = tokens
             x_tensor.append(padded)
             y_tensor.append(label2index[label])
         x_tensor = torch.stack(x_tensor)

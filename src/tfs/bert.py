@@ -35,7 +35,7 @@ class BertLearnedPositionalEmbedding(nn.Module):
         embed = self.word_embeddings(x)
 
         position = self.position_embeddings(torch.arange(x.shape[-1], dtype=x.dtype).to(x.device)).unsqueeze(0)
-        # For now, pretend token_type is always zero.  Thats fine for most cases
+
         if token_type is None:
             token_type = torch.zeros(1, dtype=x.dtype).to(x.device).unsqueeze(0)
 
@@ -471,7 +471,7 @@ class TransformerMLM(TransformerEncoder):
         ) + self.output_bias
 
     def create_loss(self):
-        return nn.CrossEntropyLoss(ignore_index=self.padding_idx)
+        return nn.CrossEntropyLoss(ignore_index=0)
 
     def forward(
         self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
@@ -585,10 +585,26 @@ class BertCreator:
 
 
 def noise_inputs(inputs, vocab_size, mask_value, ignore_prefix=True, ignore_suffix=True, mask_prob=0.15, pad_value=0):
+    """Apply the BERT masking algorithm
+
+    Identify `mask_prob` fraction of inputs to be corrupted.  80% of those are [MASK] replaced, 10% are
+    corrupted with an alternate word, 10% remain the same.  All of the other values are 0 in the label (output)
+
+    :param inputs: An array of one-hot integers
+    :param vocab_size: The size of the vocab
+    :param mask_value: The token ID for [MASK]
+    :param ignore_prefix: Should we avoid masking the first token (usually yeah)
+    :param ignore_suffix: Should we avoid masking the suffix (probably, yeah)
+    :param mask_prob: A fraction to corrupt (usually 15%)
+    :param pad_value: The value for pad tokens in the inputs
+    :return: the corrupted inputs and the truth labels for those inputs, both equal length
+    """
     labels = np.copy(inputs)
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=mask_prob)
+    # make sure if the input is padded we dont mask
     masked_indices = masked_indices & (labels != pad_value)
-    masked_indices[np.random.randint(1, sum(labels != pad_value))] = 1  # ensure at least one token is masked
+    # ensure at least one token is masked
+    masked_indices[np.random.randint(1, sum(labels != pad_value))] = 1
     if ignore_prefix:
         masked_indices[0] = 0
     if ignore_suffix:
