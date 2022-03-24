@@ -573,7 +573,7 @@ class DistributedLMTrainer:
             logging.info(metrics)
             if self.local_rank < 1:
                 metrics = self._eval_some(eval_iter, eval_cycle_size)
-            logging.info(metrics)
+                logging.info(metrics)
 
     def show_lr_plan(self, total_steps: Optional[int] = None):
         """This function plots the learning regimen over a number of steps given
