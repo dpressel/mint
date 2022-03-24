@@ -3,7 +3,7 @@ import argparse
 import torch
 from torch.utils.data import Dataset
 from tfs.bert import BertCreator, NoisingCollator, TransformerMLM
-from tfs.train import SimpleLMTrainer
+from tfs.train import DistributedLMTrainer, SingleDeviceLMTrainer
 from tfs.data import RawInfiniteDataset, wikipedia_parser, gpt2_splitter
 from tokenizers import BertWordPieceTokenizer
 
@@ -81,9 +81,6 @@ def main():
     parser.add_argument("--clip", type=float, default=1.0, help="Clipping gradient norm")
     parser.add_argument("--weight_decay", type=float, default=1.0e-2, help="Weight decay")
     parser.add_argument("--num_steps", type=int, default=250_000, help="Num training steps")
-    parser.add_argument(
-        "--grad_accum", type=int, default=1, help="#iters before we update (grad_accum*batch_size=eff_batch_size)"
-    )
     parser.add_argument("--restart_from", type=str, help="Option allows you to restart from a previous checkpoint")
     parser.add_argument("--warmup_fract", type=int, default=0.1, help="Fraction of steps spent warming up")
     parser.add_argument("--plateau_fract", type=int, default=0.0, help="Fraction of steps spent holding at max lr")
@@ -91,6 +88,14 @@ def main():
     parser.add_argument("--train_cycle_size", type=int, default=1000, help="The many training steps to run before eval")
     parser.add_argument("--eval_cycle_size", type=int, default=200, help="How many steps to evaluate each time")
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
+    parser.add_argument(
+        "--local_rank",
+        type=int,
+        default=-1,
+        help="Local rank for distributed training (-1 means use the environment variables to find)",
+    )
+    parser.add_argument("--distributed", action="store_true", help="Are we doing distributed training?")
+
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)"
     )
@@ -114,7 +119,8 @@ def main():
         global_step = 0
         model = TransformerMLM(tokenizer.get_vocab_size(), **vars(args))
 
-    trainer = SimpleLMTrainer(
+    Trainer = DistributedLMTrainer if args.distributed else SingleDeviceLMTrainer
+    trainer = Trainer(
         model,
         global_step=global_step,
         collate_function=NoisingCollator(vocab_size, mask_value, pad_value),

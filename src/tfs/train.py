@@ -32,38 +32,30 @@ class Average:
         fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
         return fmtstr.format(**self.__dict__)
 
-
-class SimpleLMTrainer:
+class SingleDeviceLMTrainer:
     """Simple trainer that works on a single machine/device
-
-    It supports most features you would need for training such as optimization params for AdamW,
-    gradient accumulation, control over what weights decay and gradient clipping.  It also suppports
-    Transformer-style learning regimens, where the learning rate has a linear rampup followed by linear
-    or cosine decay
-
     """
 
     def __init__(
-        self,
-        model,
-        lr: float = 1.0e-4,
-        batch_size: int = 256,
-        weight_decay: float = 1.0e-2,
-        warmup_fract: int = 0.1,
-        plateau_fract: int = 0.0,
-        decay_type: str = 'cosine',
-        total_steps: Optional[int] = None,
-        global_step: int = 0,
-        alpha_decay: float = 0.0,
-        betas: Tuple[float] = (0.9, 0.98),
-        eps=1e-08,
-        grad_clip: float = 1.0,
-        grad_accum=1,
-        num_train_workers=4,
-        num_valid_workers=1,
-        dont_decay_weights: Optional[List[str]] = None,
-        collate_function: Optional[Callable] = None,
-        **kwargs,
+            self,
+            model,
+            lr: float = 1.0e-4,
+            batch_size: int = 256,
+            weight_decay: float = 1.0e-2,
+            warmup_fract: int = 0.1,
+            plateau_fract: int = 0.0,
+            decay_type: str = 'cosine',
+            total_steps: Optional[int] = None,
+            global_step: int = 0,
+            alpha_decay: float = 0.0,
+            betas: Tuple[float] = (0.9, 0.98),
+            eps=1e-08,
+            grad_clip: float = 1.0,
+            num_train_workers=4,
+            num_valid_workers=1,
+            dont_decay_weights: Optional[List[str]] = None,
+            collate_function: Optional[Callable] = None,
+            **kwargs,
     ):
 
         if weight_decay == 0.0:
@@ -93,7 +85,6 @@ class SimpleLMTrainer:
             self.model = self.model.to(self.device)
             self.loss_function = self.loss_function.to(self.device)
         self.grad_clip = grad_clip
-        self.grad_accum = grad_accum
         self.batch_size = batch_size
         self.total_steps = total_steps
         self.collate_function = collate_function
@@ -101,7 +92,7 @@ class SimpleLMTrainer:
 
     def __str__(self):
         return '\n\t'.join(
-            ['Trainer:']
+            [self.__class__.__name__]
             + [f'{k}={v}' for k, v in self.__dict__.items() if v is not None and type(v) in [str, int, float]]
         )
 
@@ -111,20 +102,20 @@ class SimpleLMTrainer:
         :param dataset: A dataset consisting of unbatched data
         :return: The steps per epoch
         """
-        steps_per_epoch = len(dataset) // self.batch_size // self.grad_accum
+        steps_per_epoch = len(dataset) // self.batch_size
         return steps_per_epoch
 
     def train_steps(
-        self,
-        train_dataset: Dataset,
-        eval_dataset: Dataset,
-        model_base: str,
-        num_steps: int = 250_000,
-        saves_per_cycle: int = 1,
-        train_cycle_size: int = 10000,
-        eval_cycle_size: int = 2500,
+            self,
+            train_dataset: Dataset,
+            eval_dataset: Dataset,
+            model_base: str,
+            num_steps: int = 250_000,
+            saves_per_cycle: int = 1,
+            train_cycle_size: int = 10000,
+            eval_cycle_size: int = 2500,
     ):
-        """Train for a fixed number of steps using Infinite datasets
+        """Train for a fixed number of steps using an infinite dataset
 
         We provide an iterable training set and evaluation set, and we pick a max number of steps.
         We determine a cycle length which is similar to an epoch in that we evaluate after each cycle.
@@ -157,9 +148,8 @@ class SimpleLMTrainer:
         )
 
         self.total_steps = num_steps
-        iters_per_cycle = self.grad_accum * train_cycle_size
-        save_iter = iters_per_cycle // saves_per_cycle
-        iters_left = self.grad_accum * (self.total_steps - self.global_step)
+        save_iter = train_cycle_size // saves_per_cycle
+        iters_left = (self.total_steps - self.global_step)
         current_cycle = 0 if self.global_step == 0 else (self.global_step // train_cycle_size)
         logging.info(
             'steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]',
@@ -172,7 +162,7 @@ class SimpleLMTrainer:
         train_iter = iter(train_data_loader)
         eval_iter = iter(eval_data_loader)
         while self.global_step < self.total_steps:
-            num_iters = min(iters_left, iters_per_cycle)
+            num_iters = min(iters_left, train_cycle_size)
             metrics = self._train_some(train_iter, num_iters, save_iter, model_base)
             # Log our metrics
             logging.info(metrics)
@@ -211,12 +201,12 @@ class SimpleLMTrainer:
         plt.show()
 
     def train_epochs(
-        self,
-        train_dataset: Dataset,
-        eval_dataset: Dataset,
-        model_base: str,
-        num_epochs: int = 1,
-        saves_per_epoch: int = 1,
+            self,
+            train_dataset: Dataset,
+            eval_dataset: Dataset,
+            model_base: str,
+            num_epochs: int = 1,
+            saves_per_epoch: int = 1,
     ):
         """Epoch training interface for trainer for Map-style Datasets
 
@@ -258,7 +248,7 @@ class SimpleLMTrainer:
             )
 
             # For train some, we need figure out how many iters are needed
-            total_iters_left = self.grad_accum * (self.total_steps - self.global_step)
+            total_iters_left = self.total_steps - self.global_step
             # If we restarted, we may have to run only a fraction of our epoch, so take the min between iters and whats
             # left to do
             num_iters = min(total_iters_left, len(train_data_loader))
@@ -338,25 +328,23 @@ class SimpleLMTrainer:
             if (iters + 1) % save_iter == 0:
                 self._save_checkpoint(model_base)
 
-            # We need to accumulate the gradients
-            if (iters + 1) % self.grad_accum == 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-                self.optimizer.step()
-                self.global_step += 1
-                if self.global_step == self.total_steps:
-                    progress.set_description(
-                        f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
-                    )
-                    self._save_checkpoint(model_base)
-                    break
-                self.optimizer.zero_grad()
-                self.current_lr = self._lr_step(self.global_step)
-                for p in self.optimizer.param_groups:
-                    p["lr"] = self.current_lr
-
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+            self.optimizer.step()
+            self.global_step += 1
+            if self.global_step == self.total_steps:
                 progress.set_description(
                     f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
                 )
+                self._save_checkpoint(model_base)
+                break
+            self.optimizer.zero_grad()
+            self.current_lr = self._lr_step(self.global_step)
+            for p in self.optimizer.param_groups:
+                p["lr"] = self.current_lr
+
+            progress.set_description(
+                f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
+            )
 
         # How much time elapsed in minutes
         elapsed = (time.time() - start) / 60
@@ -406,6 +394,7 @@ class SimpleLMTrainer:
         model_ = self.model.module if hasattr(self.model, 'module') else self.model
         torch.save(model_.state_dict(), checkpoint_name + '.pth')
 
+
 def init_distributed(local_rank):
     if local_rank == -1:
         # https://github.com/kubeflow/pytorch-operator/issues/128
@@ -419,13 +408,6 @@ def init_distributed(local_rank):
     if torch.cuda.device_count() == 1:
         torch.cuda.set_device(0)
         device = torch.device("cuda", 0)
-    # This program assumes multiprocess/multi-device on a single node. Each
-    # process gets a rank (via cli or ENV variable) and uses that rank to select
-    # which gpu to use. This only makes sense on a single node, if you had 4
-    # processes on 2 nodes where each node has 2 GPUs then the ranks would be
-    # 0, 1, 2, 3 but the gpus numbers would be node 0: 0, 1 and node 1: 0, 1
-    # and this assignment to gpu 3 would fail. On a single node with 4 processes
-    # and 4 gpus the rank and gpu ids will align and this will work
     else:
         torch.cuda.set_device(local_rank)
         device = torch.device("cuda", local_rank)
@@ -436,7 +418,7 @@ def init_distributed(local_rank):
 def get_num_gpus_multiworker() -> int:
     """Get the number of GPUs in multi-worker distributed training
 
-    :return:
+    :return: A number of GPUs
     """
     return int(os.environ.get("WORLD_SIZE", 1))
 
@@ -450,14 +432,6 @@ class DistributedLMTrainer:
     based on rank, here we select only a single gpu and use it for input and
     output.
 
-    Most of the functionality is the same as for the simple version with a few caveats:
-
-    1. The model has a DistributedDataParallel wrapper
-    2. Gradients must be accumulated across machines
-    3. Gradient accumulation parameters are not passed across machines.
-    4. We arent going to bother to support both epoch and iterable approaches, just the latter
-    5. The training cycle size should be a multiple of grad accum
-    6. The number of training steps should be a multiple of training cycle size
     """
 
     def __init__(
@@ -475,7 +449,6 @@ class DistributedLMTrainer:
             betas: Tuple[float] = (0.9, 0.98),
             eps=1e-08,
             grad_clip: float = 1.0,
-            grad_accum=1,
             local_rank=-1,
             num_train_workers=4,
             num_valid_workers=1,
@@ -517,7 +490,6 @@ class DistributedLMTrainer:
             model, device_ids=[self.device], output_device=self.device, find_unused_parameters=True
         )
         self.grad_clip = grad_clip
-        self.grad_accum = grad_accum
         self.batch_size = batch_size
         self.total_steps = total_steps
         self.collate_function = collate_function
@@ -525,10 +497,9 @@ class DistributedLMTrainer:
 
     def __str__(self):
         return '\n\t'.join(
-            ['Trainer:']
+            [self.__class__.__name__]
             + [f'{k}={v}' for k, v in self.__dict__.items() if v is not None and type(v) in [str, int, float]]
         )
-
 
     def train_steps(
             self,
@@ -576,10 +547,10 @@ class DistributedLMTrainer:
 
         self.total_steps = num_steps
         # On each machine, this still is right
-        local_iters_per_cycle = self.grad_accum * train_cycle_size
+        local_iters_per_cycle = train_cycle_size
         save_iter = local_iters_per_cycle // saves_per_cycle
 
-        local_iters_left = self.grad_accum * (self.total_steps - self.global_step)
+        local_iters_left = (self.total_steps - self.global_step)
         current_cycle = 0 if self.global_step == 0 else (self.global_step // train_cycle_size)
         logging.info(
             'steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]',
@@ -593,7 +564,7 @@ class DistributedLMTrainer:
         eval_iter = iter(eval_data_loader)
         while self.global_step < self.total_steps:
             num_iters = min(local_iters_left, local_iters_per_cycle)
-            metrics = self._train_some(train_iter, num_iters, save_iter, model_base)
+            metrics = self._train_some(train_iter, num_iters, save_iter, model_base, log_updates_per_train_cycle)
             # Log our metrics
             logging.info(metrics)
             if self.local_rank < 1:
@@ -629,7 +600,6 @@ class DistributedLMTrainer:
             self.total_steps = save_total_steps
         ax.legend()
         plt.show()
-
 
     def _warmup(self, global_step):
         warmup_steps = self.warmup_fract * self.total_steps
@@ -672,19 +642,19 @@ class DistributedLMTrainer:
         if update_iter is None:
             update_iter = save_iter // 10
         # Note that the gradients are zero'd here.  This is why we want our cycle_steps to be a multiple of grad_accum
-        self.optimizer.zero_grad()
+
         start = time.time()
         self.model.train()
         for iters in range(num_iters):
-            is_dist_step = (iters + 1) % self.grad_accum == 0
-            with self.model.no_sync() if not is_dist_step else contextlib.ExitStack():
-                (x, y) = next(data_iter)
-                x = x.to(device=self.device)
-                y = y.to(device=self.device)
-                logits = self.model(x)
-                loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
-                loss.backward()
-                avg_loss.update(loss.item())
+
+            self.optimizer.zero_grad()
+            (x, y) = next(data_iter)
+            x = x.to(device=self.device)
+            y = y.to(device=self.device)
+            logits = self.model(x)
+            loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+            loss.backward()
+            avg_loss.update(loss.item())
 
             if (iters + 1) % update_iter == 0:
                 logger.info(
@@ -695,21 +665,19 @@ class DistributedLMTrainer:
             if self.local_rank < 1 and (iters + 1) % save_iter == 0:
                 self._save_checkpoint(model_base)
 
-            # We need to accumulate the gradients
-            if is_dist_step:
-                self.optimizer.step()
-                self.global_step += 1
-                if self.global_step == self.total_steps:
-                    logger.info(
-                        f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
-                    )
-                    if self.local_rank < 1:
-                        self._save_checkpoint(model_base)
-                    break
-                self.optimizer.zero_grad()
-                self.current_lr = self._lr_step(self.global_step)
-                for p in self.optimizer.param_groups:
-                    p["lr"] = self.current_lr
+            self.optimizer.step()
+            self.global_step += 1
+            if self.global_step == self.total_steps:
+                logger.info(
+                    f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
+                )
+                if self.local_rank < 1:
+                    self._save_checkpoint(model_base)
+                break
+
+            self.current_lr = self._lr_step(self.global_step)
+            for p in self.optimizer.param_groups:
+                p["lr"] = self.current_lr
 
         # How much time elapsed in minutes
         elapsed = (time.time() - start) / 60
@@ -758,6 +726,7 @@ class DistributedLMTrainer:
         logging.debug('Saving checkpoint [%s]', checkpoint_name)
         model_ = self.model.module if hasattr(self.model, 'module') else self.model
         torch.save(model_.state_dict(), checkpoint_name + '.pth')
+
 
 if __name__ == '__main__':
     pass

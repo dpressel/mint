@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, TensorDataset
 from tfs.bert import BertCreator, NoisingCollator, TransformerMLM
-from tfs.train import SimpleLMTrainer
+from tfs.train import SingleDeviceLMTrainer
 from tokenizers import BertWordPieceTokenizer
 import os
 
@@ -75,9 +75,6 @@ def main():
     parser.add_argument("--clip", type=float, default=1.0, help="Clipping gradient norm")
     parser.add_argument("--weight_decay", type=float, default=1.0e-2, help="Weight decay")
     parser.add_argument("--epochs", type=int, default=1, help="Num training epochs")
-    parser.add_argument(
-        "--grad_accum", type=int, default=1, help="#iters before we update (grad_accum*batch_size=eff_batch_size)"
-    )
     parser.add_argument("--restart_from", type=str, help="Option allows you to restart from a previous checkpoint")
     parser.add_argument("--warmup_fract", type=int, default=0.1, help="Fraction of steps spent warming up")
     parser.add_argument("--plateau_fract", type=int, default=0.0, help="Fraction of steps spent holding at max lr")
@@ -107,7 +104,7 @@ def main():
         global_step = 0
         model = TransformerMLM(tokenizer.get_vocab_size(), **vars(args))
 
-    trainer = SimpleLMTrainer(
+    trainer = SingleDeviceLMTrainer(
         model,
         global_step=global_step,
         collate_function=NoisingCollator(vocab_size, mask_value, pad_value),

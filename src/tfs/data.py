@@ -80,7 +80,6 @@ class RawInfiniteDataset(IterableDataset):
         self,
         pattern: str,
         tokenizer,
-        distribute=True,
         shuffle=True,
         prefix='[CLS]',
         suffix='[SEP]',
@@ -98,16 +97,15 @@ class RawInfiniteDataset(IterableDataset):
         self.rank = 0
         self.world_size = 1
         self.shuffle = shuffle
-        self.distribute = distribute
         self.seq_len = seq_len
         self.shuffle_buffer_len = shuf_buf_len
 
-        if torch.distributed.is_initialized() and distribute:
+        if torch.distributed.is_initialized():
             self.rank = torch.distributed.get_rank()
             self.world_size = torch.distributed.get_world_size()
 
     def _get_worker_info(self):
-        return torch.utils.data.get_worker_info() if self.distribute else None
+        return torch.utils.data.get_worker_info()
 
     def _init_read_order(self):
         # Each node has the same worker_info, so the unique offsets for each is
@@ -171,22 +169,21 @@ class RawInfiniteDataset(IterableDataset):
 class InfinitePreprocessedDataset(IterableDataset):
     """Infinite dataset on shards with multiple workers and preprocessing on-the-fly"""
 
-    def __init__(self, pattern: str, distribute=True, shuffle=True, get_data_fn=None, shuf_buf_len: int = 100):
+    def __init__(self, pattern: str, shuffle=True, get_data_fn=None, shuf_buf_len: int = 100):
         super().__init__()
         self.pattern = pattern
         self.samples = 0
         self.rank = 0
         self.world_size = 1
         self.shuffle = shuffle
-        self.distribute = distribute
         self.shuf_buf_len = shuf_buf_len
         self.get_data_fn = get_data_fn if get_data_fn else lambda x: x if x else None
-        if torch.distributed.is_initialized() and distribute:
+        if torch.distributed.is_initialized():
             self.rank = torch.distributed.get_rank()
             self.world_size = torch.distributed.get_world_size()
 
     def _get_worker_info(self):
-        return torch.utils.data.get_worker_info() if self.distribute else None
+        return torch.utils.data.get_worker_info()
 
     def _init_read_order(self):
         # Each node has the same worker_info, so the unique offsets for each is
