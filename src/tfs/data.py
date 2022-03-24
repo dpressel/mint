@@ -105,12 +105,12 @@ class RawInfiniteDataset(IterableDataset):
         self.seq_len = seq_len
         self.shuffle_buffer_len = shuf_buf_len
 
-        if torch.distributed.is_initialized():
+        if torch.distributed.is_initialized() and self.shuffle:
             self.rank = torch.distributed.get_rank()
             self.world_size = torch.distributed.get_world_size()
 
     def _get_worker_info(self):
-        return torch.utils.data.get_worker_info()
+        return torch.utils.data.get_worker_info() if self.shuffle else None
 
     def _init_read_order(self):
         # Each node has the same worker_info, so the unique offsets for each is
