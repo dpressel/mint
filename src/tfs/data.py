@@ -4,12 +4,16 @@ import random
 import logging
 import glob
 import gzip
-import bz2
+import os
 import json
 from typing import Callable, Optional, List
 
-
 logger = logging.getLogger('tfs')
+
+try:
+    import bz2
+except:
+    logger.warning("Could not import bzip2 decompression lib")
 
 
 def jsonl_parser(field: str = 'x') -> Callable:
@@ -26,23 +30,6 @@ def gpt2_splitter():
     BPE_PATTERN = regex.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
     return lambda text: [w.strip() for w in regex.findall(BPE_PATTERN, text)]
 
-
-def wikipedia_parser(splitter=None):
-    from bs4 import BeautifulSoup
-
-    tokenizer = splitter if splitter else str.split
-
-    def get_doc(line):
-        line = json.loads(line)['text']
-        text = BeautifulSoup(line, features="lxml")
-        # This is a trivial way to replace, we will just sample other surface terms and use those
-        for link in text.find_all('a'):
-            surface = link.get_text()
-            link.replace_with(surface)
-        text = ' '.join(tokenizer(text.get_text()))
-        return text
-
-    return get_doc
 
 
 class TextFile:
@@ -80,8 +67,7 @@ class RawInfiniteDataset(IterableDataset):
         self,
         pattern: str,
         tokenizer,
-        distribute=True,
-        shuffle=True,
+        training=True,
         prefix='[CLS]',
         suffix='[SEP]',
         seq_len: int = 512,
@@ -93,21 +79,21 @@ class RawInfiniteDataset(IterableDataset):
         self.tokenizer = tokenizer
         self.start_token = self.tokenizer.token_to_id(prefix)
         self.end_token = self.tokenizer.token_to_id(suffix)
-        self.pattern = pattern
+        self.pattern = pattern if not os.path.isdir(pattern) else os.path.join(pattern, "*")
+
         self.samples = 0
         self.rank = 0
         self.world_size = 1
-        self.shuffle = shuffle
-        self.distribute = distribute
+        self.training = training
         self.seq_len = seq_len
         self.shuffle_buffer_len = shuf_buf_len
 
-        if torch.distributed.is_initialized() and distribute:
+        if torch.distributed.is_initialized() and self.training:
             self.rank = torch.distributed.get_rank()
             self.world_size = torch.distributed.get_world_size()
 
     def _get_worker_info(self):
-        return torch.utils.data.get_worker_info() if self.distribute else None
+        return torch.utils.data.get_worker_info() if self.training else None
 
     def _init_read_order(self):
         # Each node has the same worker_info, so the unique offsets for each is
@@ -134,7 +120,7 @@ class RawInfiniteDataset(IterableDataset):
                     + " This might mean that you are passing an incorrect training or validation directory"
                 )
             else:
-                raise Exception(f"No files of pattern {self.pattern} were found in {self.directory}!")
+                raise Exception(f"No files of pattern {self.pattern} were found!")
         return files, read_file_order, node_worker_id
 
     def __iter__(self):
@@ -143,7 +129,7 @@ class RawInfiniteDataset(IterableDataset):
         shuffle_buffer = []
         tokens = []
         while True:
-            if self.shuffle:
+            if self.training:
                 random.shuffle(read_file_order)
             for file_idx in read_file_order:
                 file = files[file_idx]
@@ -160,7 +146,7 @@ class RawInfiniteDataset(IterableDataset):
                                 tokens = tokens[self.seq_len - 2 :]
                                 shuffle_buffer.append(tensor)
                                 if len(shuffle_buffer) == self.shuffle_buffer_len:
-                                    if self.shuffle:
+                                    if self.training:
                                         random.shuffle(shuffle_buffer)
                                     # Drain the shuffle buffer
                                     for element in shuffle_buffer:
@@ -171,22 +157,21 @@ class RawInfiniteDataset(IterableDataset):
 class InfinitePreprocessedDataset(IterableDataset):
     """Infinite dataset on shards with multiple workers and preprocessing on-the-fly"""
 
-    def __init__(self, pattern: str, distribute=True, shuffle=True, get_data_fn=None, shuf_buf_len: int = 100):
+    def __init__(self, pattern: str, training=True, get_data_fn=None, shuf_buf_len: int = 100):
         super().__init__()
         self.pattern = pattern
         self.samples = 0
         self.rank = 0
         self.world_size = 1
-        self.shuffle = shuffle
-        self.distribute = distribute
+        self.training = training
         self.shuf_buf_len = shuf_buf_len
         self.get_data_fn = get_data_fn if get_data_fn else lambda x: x if x else None
-        if torch.distributed.is_initialized() and distribute:
+        if torch.distributed.is_initialized():
             self.rank = torch.distributed.get_rank()
             self.world_size = torch.distributed.get_world_size()
 
     def _get_worker_info(self):
-        return torch.utils.data.get_worker_info() if self.distribute else None
+        return torch.utils.data.get_worker_info() if self.training else None
 
     def _init_read_order(self):
         # Each node has the same worker_info, so the unique offsets for each is
@@ -217,9 +202,9 @@ class InfinitePreprocessedDataset(IterableDataset):
 
     def __iter__(self):
         files, read_file_order, _ = self._init_read_order()
-        shuf_buf = []
+        shuffle_buffer = []
         while True:
-            if self.shuffle:
+            if self.training:
                 random.shuffle(read_file_order)
             for file_idx in read_file_order:
                 file = files[file_idx]
@@ -230,7 +215,7 @@ class InfinitePreprocessedDataset(IterableDataset):
                         if sample:
                             shuffle_buffer.append(sample)
                             if len(shuffle_buffer) == self.shuffle_buffer_len:
-                                if self.shuffle:
+                                if self.training:
                                     random.shuffle(shuffle_buffer)
                                 # Drain the shuffle buffer
                                 for element in shuffle_buffer:
