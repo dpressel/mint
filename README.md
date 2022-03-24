@@ -77,6 +77,27 @@ We can then copy these to a single directory, or split them however we would lik
 Unlike Wikitext-2, the data in Wikipedia doesnt use any tokenization upfront.
 There is a regex used in GPT, which is also close to BERTs preprocessing, which we use in this example.
 
+Here is how you can train on multiple workers with DistributedDataParallel:
+
+```
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7,8,9 python -m torch.distributed.launch \
+        --node=1 \
+        --nproc_per_node=8 \
+        --node_rank=0 \
+        --master_port=$PORT \
+        pretrain_bert_wiki.py \
+        --vocab_file /data/k8s/hf-models/bert-base-uncased/vocab.txt \
+        --lowercase \
+        --train_file "/path/to/enwiki-extracted/train/" \
+        --valid_file "/path/to/enwiki-extracted/valid/" \
+        --num_train_workers 4 \
+        --num_valid_workers 1 --batch_size $B --num_steps $N --saves_per_cycle 1 \
+        --train_cycle_size 10000 \
+        --eval_cycle_size 500 \
+        --distributed
+
+```
+
 ## Fine-tuning
 
 The [tune_bert_for_cls](src/tfs/examples/tune_bert_for_cls.py) program is a simple example of fine-tuning
