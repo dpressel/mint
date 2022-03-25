@@ -3,10 +3,13 @@
 ## A Tiny Library for Transformers from the ground up
 
 Minimal PyTorch implementation of common Transformer architectures (starting with BERT).
-There is library code that accompanies the tutorials, which explain how to build these architectures from the ground up.
+This code was written for a (not-yet complete) Colab Tutorial
 
-The structure of the library is simple
+The first part is up:
 
+- [BERT from scratch](https://colab.research.google.com/drive/175hnhLkJcXH40tGGpO-1kbBrb2IIcIuT?usp=sharing)
+
+The code here is factored out here as a python package for easy use outside of the tutorial.
 
 Because this is written for a tutorial to explain the modeling and training approach, we currently depend on the
 HuggingFace tokenizers library to implement subword tokenization.  I selected it because its fast, and widely used.
