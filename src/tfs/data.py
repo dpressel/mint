@@ -136,7 +136,7 @@ class RawInfiniteDataset(IterableDataset):
                     for line in rf:
                         line = self.get_data_fn(line.strip())
                         if line:
-                            line = self.tokenizer.encode(line, add_special_tokens=False)
+                            line = self.tokenizer.encode(line.split(), is_pretokenized=True, add_special_tokens=False)
                             tokens += line.ids
                             if len(tokens) >= (self.seq_len - 2):
                                 tensor = torch.tensor(
@@ -250,7 +250,7 @@ def read_cls_dataset(
             if label not in label2index:
                 label2index[label] = label_offset
                 label_offset += 1
-            tokens = torch.tensor(tokenizer.encode(' '.join(splitter_fn(example_str))).ids)
+            tokens = torch.tensor(tokenizer.encode(splitter_fn(example_str), is_pretokenized=True).ids)
             padded = torch.full((max_seq_len,), pad_index, dtype=tokens.dtype)
             padded[: len(tokens)] = tokens
             x_tensor.append(padded)
