@@ -48,7 +48,6 @@ class GPTLearnedPositionalEmbedding(nn.Module):
         return self.word_embeddings.weight
 
 
-
 class GPTTransformerLM(TransformerEncoder):
     """Our GPT LM predicts tokens from left-to-right, with post-layer-norm encoders
 
@@ -56,18 +55,18 @@ class GPTTransformerLM(TransformerEncoder):
     """
 
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-5,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 512,
-            **kwargs,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-5,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
+        **kwargs,
     ):
         super().__init__(
             GPTLearnedPositionalEmbedding,
@@ -81,13 +80,23 @@ class GPTTransformerLM(TransformerEncoder):
             activation,
             feed_forward_size,
             max_seq_len,
-            do_embeddings_layer_norm=False
+            do_embeddings_layer_norm=False,
         )
         self.activation = activation
 
         self.register_buffer(
             "causal_mask",
-            torch.tril(torch.ones((max_seq_len, max_seq_len,), dtype=torch.uint8)).unsqueeze(0).unsqueeze(0),
+            torch.tril(
+                torch.ones(
+                    (
+                        max_seq_len,
+                        max_seq_len,
+                    ),
+                    dtype=torch.uint8,
+                )
+            )
+            .unsqueeze(0)
+            .unsqueeze(0),
         )
 
         self.apply(self.init_layer_weights)
@@ -98,15 +107,13 @@ class GPTTransformerLM(TransformerEncoder):
         :param x: transformer output
         :return: word predictions
         """
-        return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(
-            1, 2
-        )
+        return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(1, 2)
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=0)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
@@ -115,7 +122,7 @@ class GPTTransformerLM(TransformerEncoder):
         :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
         :return:
         """
-        y = super().forward(x, self.causal_mask[:, :, :x.shape[1], :x.shape[1]])
+        y = super().forward(x, self.causal_mask[:, :, : x.shape[1], : x.shape[1]])
         y = self.output_layer(y)
         return y
 
@@ -128,20 +135,21 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
     """
 
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 1024,
-            **kwargs,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 1024,
+        **kwargs,
     ):
         super().__init__(
+            GPTLearnedPositionalEmbedding,
             vocab_size,
             padding_idx,
             hidden_size,
@@ -151,14 +159,23 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
             layer_norm_eps,
             activation,
             feed_forward_size,
+            max_seq_len,
         )
-        self.transform = nn.Linear(hidden_size, hidden_size)
-        self.layer_norm = nn.LayerNorm(hidden_size, layer_norm_eps)
         self.activation = activation
 
         self.register_buffer(
             "causal_mask",
-            torch.tril(torch.ones((max_seq_len, max_seq_len,), dtype=torch.uint8)).unsqueeze(0).unsqueeze(0),
+            torch.tril(
+                torch.ones(
+                    (
+                        max_seq_len,
+                        max_seq_len,
+                    ),
+                    dtype=torch.uint8,
+                )
+            )
+            .unsqueeze(0)
+            .unsqueeze(0),
         )
 
         self.apply(self.init_layer_weights)
@@ -169,15 +186,13 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
         :param x: transformer output
         :return: word predictions
         """
-        return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(
-            1, 2
-        ) + self.output_bias
+        return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(1, 2)
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=0)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
@@ -186,9 +201,8 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
         :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
         :return:
         """
-        y = super().forward(x, self.causal_mask[:, :, :x.shape[1], :x.shape[1]])
+        y = super().forward(x, self.causal_mask[:, :, : x.shape[1], : x.shape[1]])
         y = self.output_layer(y)
-        y = self.layer_norm(y)
         return y
 
 
@@ -247,7 +261,9 @@ class GPTCreator:
                 tlm_field_names.remove(f'{new_field_name}.output.bias')
                 unused_checkpoint_fields.remove(field_name)
             elif 'attn.bias' in field_name:
-                assert (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask).all().item() #torch.tril(torch.ones(gpt_state_dict[field_name].shape[-1], gpt_state_dict[field_name].shape[-1]))).all().item()
+                assert (
+                    (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask).all().item()
+                )  # torch.tril(torch.ones(gpt_state_dict[field_name].shape[-1], gpt_state_dict[field_name].shape[-1]))).all().item()
                 unused_checkpoint_fields.remove(field_name)
 
             if new_field_name in tlm_field_names:
@@ -273,6 +289,95 @@ class GPTCreator:
         vocab_size, hidden_size = GPTCreator.get_vocab_and_hidden_dims(hf_dict)
         tlm = GPTTransformerLM(vocab_size, **kwargs)
         missing, unused = GPTCreator.convert_state_dict(tlm, hf_dict)
+        logging.info(f'Unset params: {missing}')
+        logging.info(f'Unused checkpoint fields: {unused}')
+        return tlm
+
+
+class GPT2Creator:
+    @classmethod
+    def convert_state_dict(cls, tlm, gpt_state_dict):
+        tlm_field_names = set(k for k in tlm.state_dict().keys())
+        hf_field_names = gpt_state_dict.keys()
+
+        unused_checkpoint_fields = set(hf_field_names)
+        remap = {}
+
+        for field_name in hf_field_names:
+
+            if 'mlp.c_fc.weight' in field_name:
+                gpt_state_dict[field_name] = gpt_state_dict[field_name].T
+            if 'mlp.c_proj.weight' in field_name:
+                gpt_state_dict[field_name] = gpt_state_dict[field_name].T
+            new_field_name = field_name.replace('wte', 'embeddings.word_embeddings')
+            new_field_name = new_field_name.replace('wpe', 'embeddings.position_embeddings')
+            new_field_name = new_field_name.replace('h.', 'encoder.')
+            new_field_name = new_field_name.replace('.attn', '.self_attention')
+            new_field_name = new_field_name.replace('mlp.c_fc', 'ffn.0')
+            new_field_name = new_field_name.replace('mlp.c_proj', 'ffn.2')
+            new_field_name = new_field_name.replace('.c_attn.weight', '')
+            new_field_name = new_field_name.replace('.c_attn.bias', '')
+            new_field_name = new_field_name.replace('.c_proj.weight', '')
+            new_field_name = new_field_name.replace('.c_proj.bias', '')
+
+            new_field_name = new_field_name.replace('ln_1', 'self_attention_layer_norm')
+            new_field_name = new_field_name.replace('ln_2', 'output_layer_norm')
+            new_field_name = new_field_name.replace('ln_f', 'layer_norm')
+            if 'attn.c_attn.weight' in field_name:
+                q, k, v = torch.chunk(gpt_state_dict[field_name].T, 3, dim=0)
+                remap[f'{new_field_name}.query.weight'] = q
+                tlm_field_names.remove(f'{new_field_name}.query.weight')
+                remap[f'{new_field_name}.key.weight'] = k
+                tlm_field_names.remove(f'{new_field_name}.key.weight')
+                remap[f'{new_field_name}.value.weight'] = v
+                tlm_field_names.remove(f'{new_field_name}.value.weight')
+                unused_checkpoint_fields.remove(field_name)
+            elif 'attn.c_proj.weight' in field_name:
+                remap[f'{new_field_name}.output.weight'] = gpt_state_dict[field_name].T
+                unused_checkpoint_fields.remove(field_name)
+                tlm_field_names.remove(f'{new_field_name}.output.weight')
+            elif 'attn.c_attn.bias' in field_name:
+                q, k, v = torch.chunk(gpt_state_dict[field_name], 3, dim=0)
+                remap[f'{new_field_name}.query.bias'] = q
+                tlm_field_names.remove(f'{new_field_name}.query.bias')
+                remap[f'{new_field_name}.key.bias'] = k
+                tlm_field_names.remove(f'{new_field_name}.key.bias')
+                remap[f'{new_field_name}.value.bias'] = v
+                tlm_field_names.remove(f'{new_field_name}.value.bias')
+                unused_checkpoint_fields.remove(field_name)
+            elif 'attn.c_proj.bias' in field_name:
+                remap[f'{new_field_name}.output.bias'] = gpt_state_dict[field_name]
+                tlm_field_names.remove(f'{new_field_name}.output.bias')
+                unused_checkpoint_fields.remove(field_name)
+            elif 'attn.bias' in field_name:
+                assert (
+                    (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask).all().item()
+                )  # torch.tril(torch.ones(gpt_state_dict[field_name].shape[-1], gpt_state_dict[field_name].shape[-1]))).all().item()
+                unused_checkpoint_fields.remove(field_name)
+
+            if new_field_name in tlm_field_names:
+                tlm_field_names.remove(new_field_name)
+                unused_checkpoint_fields.remove(field_name)
+                remap[new_field_name] = gpt_state_dict[field_name]
+
+        tlm.load_state_dict(remap, strict=False)
+        return tlm_field_names, unused_checkpoint_fields
+
+    @classmethod
+    def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
+        embeddings_weight = hf_dict[[k for k in hf_dict if 'wte.weight' in k][0]]
+        return embeddings_weight.shape
+
+    @classmethod
+    def lm_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+        if os.path.isdir(checkpoint_file_or_dir):
+            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+        else:
+            checkpoint = checkpoint_file_or_dir
+        hf_dict = torch.load(checkpoint, map_location=map_location)
+        vocab_size, hidden_size = GPT2Creator.get_vocab_and_hidden_dims(hf_dict)
+        tlm = GPT2TransformerLM(vocab_size, **kwargs)
+        missing, unused = GPT2Creator.convert_state_dict(tlm, hf_dict)
         logging.info(f'Unset params: {missing}')
         logging.info(f'Unused checkpoint fields: {unused}')
         return tlm

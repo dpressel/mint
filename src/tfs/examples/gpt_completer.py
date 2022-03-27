@@ -3,7 +3,7 @@ import argparse
 import torch
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
-from tfs.gpt import GPTCreator
+from tfs.gpt import GPTCreator, GPT2Creator
 from tokenizers import ByteLevelBPETokenizer
 
 logger = logging.getLogger(__file__)
@@ -21,19 +21,20 @@ def main():
     parser.add_argument("--history_file", type=str, default=".gpt_history")
     parser.add_argument("--max_len", type=int, default=50)
     parser.add_argument("--sample", action="store_true")
-    parser.add_argument("--version", type=int, choices=[1, 2], default=1)
+    parser.add_argument("--version", type=int, choices=[1, 2], default=2)
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)"
     )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file, add_prefix_space=True)
-    model = GPTCreator.lm_from_pretrained(args.model).eval()
+    Creator = GPT2Creator if args.version == 2 else GPTCreator
+    model = Creator.lm_from_pretrained(args.model).eval()
     model.to(args.device)
 
     def complete(query, sampling):
         logger.info("Query: %s", query)
-        tokenized_input = tokenizer.encode(query)#.split(), is_pretokenized=True, add_prefix_space=True)
+        tokenized_input = tokenizer.encode(query)  # .split(), is_pretokenized=True, add_prefix_space=True)
         logger.info("Priming Sequence: %s", ' '.join(tokenized_input.tokens))
         inputs = tokenized_input.ids
         outputs = []
@@ -43,7 +44,7 @@ def main():
 
                 ids = torch.tensor(inputs, device=args.device)
                 response = model(ids.unsqueeze(0)).squeeze(0)
-                response = response[len(inputs)-1]
+                response = response[len(inputs) - 1]
                 if sampling:
                     sample_dist = response.exp()
                     output = torch.multinomial(sample_dist, num_samples=1)

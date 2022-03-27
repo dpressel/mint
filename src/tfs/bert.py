@@ -51,7 +51,6 @@ class BertLearnedPositionalEmbedding(nn.Module):
         return self.word_embeddings.weight
 
 
-
 class TransformerPooledEncoder(TransformerEncoder):
     """Use our Transformer encoder with a pooling head.  For BERT, this head is pretrained on NSP
 
@@ -96,7 +95,7 @@ class TransformerPooledEncoder(TransformerEncoder):
             layer_norm_eps,
             activation,
             feed_forward_size,
-            max_seq_len
+            max_seq_len,
         )
         self.pooler = nn.Linear(hidden_size, hidden_size)
         self.output = output if output else nn.Identity()
@@ -165,7 +164,7 @@ class TransformerProjectionEncoder(TransformerEncoder):
             layer_norm_eps,
             activation,
             feed_forward_size,
-            max_seq_len
+            max_seq_len,
         )
         self.pooler = nn.Linear(hidden_size, hidden_size)
         self.output = output if output else nn.Identity()
@@ -230,7 +229,7 @@ class TransformerMLM(TransformerEncoder):
             layer_norm_eps,
             activation,
             feed_forward_size,
-            max_seq_len
+            max_seq_len,
         )
         self.transform = nn.Linear(hidden_size, hidden_size)
         self.layer_norm = nn.LayerNorm(hidden_size, layer_norm_eps)

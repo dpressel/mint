@@ -33,7 +33,7 @@ def create_single_file_dataset(tokenizer: ByteLevelBPETokenizer, fname: str, seq
         if trunc == num_samples:
             tokens.append(tokens[0])
         x_tensors = torch.tensor(tokens[:trunc])
-        y_tensors = torch.tensor(tokens[1:trunc+1])
+        y_tensors = torch.tensor(tokens[1 : trunc + 1])
     return TensorDataset(x_tensors.view(num_samples, -1), y_tensors.view(num_samples, -1))
 
 

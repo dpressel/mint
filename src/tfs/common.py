@@ -62,7 +62,7 @@ class MultiHeadedAttention(nn.Module):
 
 
 def create_feed_forward_layer(
-        hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.GELU()
+    hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.GELU()
 ):
     """Create a feed-forward layer (called FFN in the paper)
 
@@ -91,13 +91,13 @@ class TransformerEncoderLayer(nn.Module):
     """
 
     def __init__(
-            self,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
+        self,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -157,13 +157,13 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
     """
 
     def __init__(
-            self,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
+        self,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -210,7 +210,6 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         return y
 
 
-
 class TransformerEncoder(nn.Module):
     """A Post-Layer Norm Transformer Encoder (with no task heads)
 
@@ -224,19 +223,19 @@ class TransformerEncoder(nn.Module):
     """
 
     def __init__(
-            self,
-            EmbeddingClass: Callable,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 512,
-            do_embeddings_layer_norm = True,
+        self,
+        EmbeddingClass: Callable,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
+        do_embeddings_layer_norm=True,
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -252,7 +251,9 @@ class TransformerEncoder(nn.Module):
         """
         super().__init__()
         self.padding_idx = padding_idx
-        self.embeddings_layer_norm = nn.LayerNorm(hidden_size, layer_norm_eps) if do_embeddings_layer_norm else nn.Identity()
+        self.embeddings_layer_norm = (
+            nn.LayerNorm(hidden_size, layer_norm_eps) if do_embeddings_layer_norm else nn.Identity()
+        )
         self.embeddings = EmbeddingClass(vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len)
         self.encoder = nn.ModuleList(
             [
@@ -286,7 +287,7 @@ class TransformerEncoder(nn.Module):
         return mask.unsqueeze(1).unsqueeze(1).to(device=x.device)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
 
@@ -314,7 +315,6 @@ class TransformerEncoder(nn.Module):
             module.bias.data.zero_()
 
 
-
 class PreLayerNormTransformerEncoder(nn.Module):
     """A Pre-Layer Norm Transformer Encoder (with no task heads)
 
@@ -328,18 +328,18 @@ class PreLayerNormTransformerEncoder(nn.Module):
     """
 
     def __init__(
-            self,
-            EmbeddingClass: Callable,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 512,
+        self,
+        EmbeddingClass: Callable,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -355,14 +355,16 @@ class PreLayerNormTransformerEncoder(nn.Module):
         """
         super().__init__()
         self.padding_idx = padding_idx
-        self.embeddings_layer_norm = nn.LayerNorm(hidden_size, layer_norm_eps)
         self.embeddings = EmbeddingClass(vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len)
         self.encoder = nn.ModuleList(
             [
-                PreLayerNormTransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size)
+                PreLayerNormTransformerEncoderLayer(
+                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size
+                )
                 for _ in range(num_layers)
             ]
         )
+        self.layer_norm = nn.LayerNorm(hidden_size, layer_norm_eps)
 
     @property
     def hidden_size(self):
@@ -389,7 +391,7 @@ class PreLayerNormTransformerEncoder(nn.Module):
         return mask.unsqueeze(1).unsqueeze(1).to(device=x.device)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
 
@@ -399,9 +401,10 @@ class PreLayerNormTransformerEncoder(nn.Module):
         :return:
         """
         y = self.embeddings(x, token_type)
-        y = self.embeddings_layer_norm(y)
         for t in self.encoder:
             y = t(y, mask)
+
+        y = self.layer_norm(y)
         return y
 
     def init_layer_weights(self, module):
