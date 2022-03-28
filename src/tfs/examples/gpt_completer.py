@@ -27,7 +27,7 @@ def main():
     )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
-    tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file, add_prefix_space=True)
+    tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file)#, add_prefix_space=True)
     Creator = GPT2Creator if args.version == 2 else GPTCreator
     model = Creator.lm_from_pretrained(args.model).eval()
     model.to(args.device)

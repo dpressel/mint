@@ -16,12 +16,26 @@ class GPTLearnedPositionalEmbedding(nn.Module):
     The positional embedding is a learned vector that uses the index offset of the input token.
     The word embeddings is a learned vector that uses the word one-hots to convert to a dense representation.
     Each of these embeddings are added together in the forward
+
+    TODO: dropout value should be configurable
     """
 
-    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512):
+    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512, dropout = 0.1):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
         self.position_embeddings = nn.Embedding(max_seq_len, hidden_dim)
+        self.dropout = dropout
+
+    def maybe_dropout(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply dropout operator in graph only if training
+
+        TODO: this function could also test dropout to make sure its > 0, pruning an unnecessary op
+        if training with no dropout
+
+        :param x: The output of the sub-layer
+        :return: A (maybe) dropped out version of the input
+        """
+        return nn.functional.dropout(x, self.dropout) if self.training else x
 
     def forward(self, x: torch.Tensor, _: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Takes a tensor of shape `[B, T]` and an optional `token_type` of same shape
@@ -32,8 +46,7 @@ class GPTLearnedPositionalEmbedding(nn.Module):
         """
         embed = self.word_embeddings(x)
         position = self.position_embeddings(torch.arange(x.shape[-1], dtype=x.dtype).to(x.device)).unsqueeze(0)
-
-        return embed + position
+        return self.maybe_dropout(embed + position)
 
     @property
     def max_seq_len(self):
@@ -131,7 +144,7 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
     """Our GPT2 LM predicts tokens from left-to-right, with pre-layer-norm encoders
 
     The GPT2 model is identical to the original GPT model except for the layer norm positioning and the scaling
-    of the residual connection initializations
+    of the residual connection initializations (and the max_seq_len is now 1024)
     """
 
     def __init__(
@@ -196,6 +209,7 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
+        TODO, if we get mask, need to and with causal_mask
         :param x: A one-hot (long) tensor of shape `[B, T]`
         :param mask: An optional mask to take in for attention
         :param token_type: An optional tensor of 0 or 1, shape `[B, T]`

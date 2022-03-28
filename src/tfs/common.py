@@ -203,10 +203,12 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         :return: The output of the block
         """
 
+        residual = x
         y = self.self_attention_layer_norm(x)
-        y = y + self.maybe_dropout(self.self_attention(y, mask))
+        y = residual + self.maybe_dropout(self.self_attention(y, mask))
+        residual = y
         y = self.output_layer_norm(y)
-        y = y + self.maybe_dropout(self.ffn(y))
+        y = residual + self.maybe_dropout(self.ffn(y))
         return y
 
 
