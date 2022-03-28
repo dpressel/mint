@@ -1,6 +1,6 @@
 from tfs.bert import BertCreator
 from tfs.train import Average
-from tfs.data import read_cls_dataset, gpt2_splitter
+from tfs.data import read_cls_dataset
 from tokenizers import BertWordPieceTokenizer
 import argparse
 import sys
@@ -112,7 +112,7 @@ def main():
     tokenizer = BertWordPieceTokenizer(args.vocab_file, lowercase=args.lowercase)
     # TODO: read the pad_index in
     train_set, labels = read_cls_dataset(
-        args.train_file, tokenizer, pad_index=0, splitter_fn=gpt2_splitter(), max_seq_len=args.max_seq_len
+        args.train_file, tokenizer, pad_index=0, max_seq_len=args.max_seq_len
     )
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, collate_fn=trim_to_shortest_len
@@ -122,7 +122,6 @@ def main():
         args.valid_file,
         tokenizer,
         pad_index=0,
-        splitter_fn=gpt2_splitter(),
         max_seq_len=args.max_seq_len,
         label_list=labels,
     )
@@ -159,7 +158,6 @@ def main():
         args.test_file,
         tokenizer,
         pad_index=0,
-        splitter_fn=gpt2_splitter(),
         max_seq_len=args.max_seq_len,
         label_list=labels,
     )
