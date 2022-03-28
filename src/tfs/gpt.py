@@ -135,7 +135,11 @@ class GPTTransformerLM(TransformerEncoder):
         :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
         :return:
         """
-        y = super().forward(x, self.causal_mask[:, :, : x.shape[1], : x.shape[1]])
+        input_mask = self.causal_mask[:, :, : x.shape[1], : x.shape[1]]
+        if mask is not None:
+            input_mask = mask & input_mask
+
+        y = super().forward(x, input_mask)
         y = self.output_layer(y)
         return y
 
@@ -209,13 +213,16 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
-        TODO, if we get mask, need to and with causal_mask
         :param x: A one-hot (long) tensor of shape `[B, T]`
         :param mask: An optional mask to take in for attention
         :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
         :return:
         """
-        y = super().forward(x, self.causal_mask[:, :, : x.shape[1], : x.shape[1]])
+        input_mask = self.causal_mask[:, :, : x.shape[1], : x.shape[1]]
+        if mask is not None:
+            input_mask = mask & input_mask
+
+        y = super().forward(x, input_mask)
         y = self.output_layer(y)
         return y
 

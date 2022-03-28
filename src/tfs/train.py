@@ -380,7 +380,7 @@ class SingleDeviceLMTrainer:
         elapsed = (time.time() - start) / 60
         metrics['valid_elapsed_min'] = elapsed
         metrics['average_valid_loss'] = valid_token_loss
-        metrics['average_valid_word_ppl'] = valid_token_ppl
+        metrics['average_valid_token_ppl'] = valid_token_ppl
         return metrics
 
     def _checkpoint_for(self, model_base):
