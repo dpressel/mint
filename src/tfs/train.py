@@ -333,7 +333,7 @@ class SingleDeviceLMTrainer:
             self.global_step += 1
             if self.global_step == self.total_steps:
                 progress.set_description(
-                    f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
+                    f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
                 )
                 self._save_checkpoint(model_base)
                 break
@@ -342,7 +342,7 @@ class SingleDeviceLMTrainer:
             for p in self.optimizer.param_groups:
                 p["lr"] = self.current_lr
 
-            progress.set_description(f"global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}")
+            progress.set_description(f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
 
         # How much time elapsed in minutes
         elapsed = (time.time() - start) / 60
@@ -373,7 +373,7 @@ class SingleDeviceLMTrainer:
                 logits = self.model(x)
                 loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
                 avg_loss.update(loss.item())
-                progress.set_description(f"validation steps {iters}: loss {loss.item():.5f}. lr {self.current_lr:e}")
+                progress.set_description(f"validation steps {iters}: loss {avg_loss}. lr {self.current_lr:e}")
         valid_token_loss = avg_loss.avg
         valid_token_ppl = math.exp(valid_token_loss)
 

@@ -18,18 +18,13 @@ function to train this.
 """
 
 
-def create_single_file_dataset(tokenizer: ByteLevelBPETokenizer, fname: str, seq_len: int = 512) -> Dataset:
-    with open(fname) as rf:
-        tokens = []
-        for line in rf:
-            line = line.strip()
-            if line:
-                line = tokenizer.encode(line)
-                tokens += line.ids
+def create_single_file_dataset(tokenizer: ByteLevelBPETokenizer, fname: str, seq_len) -> Dataset:
 
+    with open(fname) as rf:
+        full_text = rf.read()
+        tokens = tokenizer.encode(full_text).ids
         num_samples = len(tokens) // seq_len
         trunc = num_samples * seq_len
-        # Make sure we have enough for X and a Y that is lagged by 1
         if trunc == num_samples:
             tokens.append(tokens[0])
         x_tensors = torch.tensor(tokens[:trunc])
@@ -93,7 +88,8 @@ def main():
         if not os.path.exists(args.model_checkpoint_dir):
             os.makedirs(args.model_checkpoint_dir)
 
-    tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file)#, add_prefix_space=True)
+    tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file)
+    seq_len = 1024 if args.version == 2 else 512
 
     if args.restart_from:
         global_step = try_get_global_step(args.restart_from)
@@ -110,8 +106,8 @@ def main():
         **vars(args),
     )
     logger.info(trainer)
-    train_dataset = create_single_file_dataset(tokenizer, args.train_file, args.seq_len)
-    valid_dataset = create_single_file_dataset(tokenizer, args.valid_file, args.seq_len)
+    train_dataset = create_single_file_dataset(tokenizer, args.train_file, seq_len)
+    valid_dataset = create_single_file_dataset(tokenizer, args.valid_file, seq_len)
 
     trainer.train_epochs(train_dataset, valid_dataset, os.path.join(args.model_checkpoint_dir, 'ckpt'), args.epochs)
 
