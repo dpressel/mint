@@ -3,7 +3,7 @@ import argparse
 import torch
 import numpy as np
 from torch.utils.data import Dataset, TensorDataset
-from tfs.gpt import GPT2TransformerLM, GPTTransformerLM, GPTCreator
+from tfs.gpt import GPT2TransformerLM, GPTTransformerLM, GPTCreator, GPT2Creator
 from tfs.train import SingleDeviceLMTrainer
 from tokenizers import ByteLevelBPETokenizer
 import os
@@ -58,7 +58,7 @@ def try_get_global_step(checkpoint_name) -> int:
 def main():
     parser = argparse.ArgumentParser(description='Pretrain GPT (simple)')
     parser.add_argument("--model_checkpoint_dir", type=str)
-    parser.add_argument("--version", type=int, choices=[1, 2], default=1)
+    parser.add_argument("--version", type=int, choices=[1, 2], default=2)
     parser.add_argument("--train_file", type=str, required=True, help='File path to use for train file')
     parser.add_argument("--valid_file", type=str, required=True, help='File path to use for valid file')
     parser.add_argument("--hidden_size", type=int, default=768, help="Model dimension (and embedding dsz)")
@@ -93,12 +93,12 @@ def main():
         if not os.path.exists(args.model_checkpoint_dir):
             os.makedirs(args.model_checkpoint_dir)
 
-    tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file, add_prefix_space=True)
+    tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file)#, add_prefix_space=True)
 
     if args.restart_from:
         global_step = try_get_global_step(args.restart_from)
-
-        model = GPTCreator.lm_from_pretrained(args.restart_from, **vars(args))
+        Creator = GPT2Creator if args.version == 2 else GPTCreator
+        model = Creator.lm_from_pretrained(args.restart_from, **vars(args))
     else:
         global_step = 0
         GPT = GPT2TransformerLM if args.version == 2 else GPTTransformerLM
