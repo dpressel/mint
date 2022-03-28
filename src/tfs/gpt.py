@@ -277,7 +277,7 @@ class GPTCreator:
             elif 'attn.bias' in field_name:
                 assert (
                     (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask).all().item()
-                )  # torch.tril(torch.ones(gpt_state_dict[field_name].shape[-1], gpt_state_dict[field_name].shape[-1]))).all().item()
+                )
                 unused_checkpoint_fields.remove(field_name)
 
             if new_field_name in tlm_field_names:

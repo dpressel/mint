@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset, TensorDataset
 from tfs.gpt import GPT2TransformerLM, GPTTransformerLM, GPTCreator, GPT2Creator
 from tfs.train import SingleDeviceLMTrainer
-from tokenizers import ByteLevelBPETokenizer
+from tokenizers import Tokenizer
 import os
 
 logger = logging.getLogger(__file__)
@@ -18,7 +18,7 @@ function to train this.
 """
 
 
-def create_single_file_dataset(tokenizer: ByteLevelBPETokenizer, fname: str, seq_len) -> Dataset:
+def create_single_file_dataset(tokenizer: Tokenizer, fname: str, seq_len) -> Dataset:
 
     with open(fname) as rf:
         full_text = rf.read()
@@ -64,8 +64,7 @@ def main():
     parser.add_argument("--num_valid_workers", type=int, default=1, help="Number train workers")
     parser.add_argument("--seq_len", type=int, default=512, help="Max input length")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch Size")
-    parser.add_argument("--vocab_file", type=str, help="The vocab file", required=True)
-    parser.add_argument("--merges_file", type=str, help="The merges file", required=True)
+    parser.add_argument("--tok_file", type=str, help="The vocab file", required=True)
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
     parser.add_argument("--decay_type", choices=['cosine', 'linear'], help="The type of learning rate decay scheduler")
     parser.add_argument("--alpha_decay", type=float, default=0.0, help="fraction of learning rate by end of training")
@@ -88,7 +87,9 @@ def main():
         if not os.path.exists(args.model_checkpoint_dir):
             os.makedirs(args.model_checkpoint_dir)
 
-    tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file)
+    if os.path.isdir(args.tok_file):
+        args.tok_file = os.path.join(args.tok_file, 'tokenizer.json')
+    tokenizer = Tokenizer.from_file(args.tok_file)
     seq_len = 1024 if args.version == 2 else 512
 
     if args.restart_from:
