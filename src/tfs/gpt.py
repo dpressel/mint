@@ -137,7 +137,7 @@ class GPTTransformerLM(TransformerEncoder):
         """
         input_mask = self.causal_mask[:, :, : x.shape[1], : x.shape[1]]
         if mask is not None:
-            input_mask = mask & input_mask
+            input_mask = mask & input_mask.to(dtype=torch.bool)
 
         y = super().forward(x, input_mask)
         y = self.output_layer(y)
@@ -220,12 +220,112 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
         """
         input_mask = self.causal_mask[:, :, : x.shape[1], : x.shape[1]]
         if mask is not None:
-            input_mask = mask & input_mask
+            input_mask = mask & input_mask.to(dtype=torch.bool)
 
         y = super().forward(x, input_mask)
         y = self.output_layer(y)
         return y
 
+
+class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
+    """Use our Transformer encoder with a pooling head.  For BERT, this head is pretrained on NSP
+
+    We will use this model for classification
+    """
+
+    def __init__(
+            self,
+            vocab_size: int,
+            padding_idx: int = 0,
+            hidden_size: int = 768,
+            num_heads: int = 12,
+            num_layers: int = 12,
+            dropout: float = 0.1,
+            layer_norm_eps: float = 1e-12,
+            activation: nn.Module = nn.GELU(),
+            feed_forward_size: Optional[int] = None,
+            output: Optional[nn.Module] = None,
+            max_seq_len: int = 1024,
+            pool_id: Optional[int] = None,
+            **kwargs,
+    ):
+        """Set up initialization for a (post-layer-norm) Transformer with pooling output.  Defaults to bert-base settings
+
+        :param vocab_size: The size of the input vocabulary
+        :param padding_idx: The padding index, defaults to 0
+        :param hidden_size: The number of hidden units
+        :param num_heads: The number of heads for multi-headed attn.  Should divide evenly into hidden_size
+        :param num_layers: The number of transformer layers (MHA+FFN) in the architecture
+        :param dropout: The value to apply for dropout
+        :param layer_norm_eps: The noising term for layer norm
+        :param activation: The activation function to use throughout
+        :param feed_forward_size: An optional value to set for the FFN MLP output size, defaults to 4*hidden_size
+        """
+        super().__init__(
+            GPTLearnedPositionalEmbedding,
+            vocab_size,
+            padding_idx,
+            hidden_size,
+            num_heads,
+            num_layers,
+            dropout,
+            layer_norm_eps,
+            activation,
+            feed_forward_size,
+            max_seq_len,
+        )
+        if pool_id is None:
+            raise Exception("Non token-based pooling methods not currently supported")
+        self.pooling = self.mean_pool if pool_id is None else self.pool_by_id
+        self.pool_id = pool_id
+
+        self.output = output if output else nn.Identity()
+        self.register_buffer(
+            "causal_mask",
+            torch.tril(
+                torch.ones(
+                    (
+                        max_seq_len,
+                        max_seq_len,
+                    ),
+                    dtype=torch.uint8,
+                )
+            )
+                .unsqueeze(0)
+                .unsqueeze(0),
+                )
+
+        self.apply(self.init_layer_weights)
+
+    def forward(
+            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """
+
+        :param x: A one-hot (long) tensor of shape `[B, T]`
+        :param mask: An optional mask to take in for attention
+        :param token_type:
+        :return:
+        """
+        input_mask = self.causal_mask[:, :, : x.shape[1], : x.shape[1]]
+        if mask is not None:
+            input_mask = mask & input_mask.to(dtype=torch.bool)
+
+        y = self.embeddings(x, token_type)
+        for t in self.encoder:
+            y = t(y, input_mask)
+
+        y = self.pooling(x, y)
+        return self.output(y)
+
+    def pool_by_id(self, inputs, embeddings):
+        return embeddings[inputs == self.pool_id]
+
+    def mean_pool(self, inputs, embeddings):
+        mask = (inputs != 0)
+        seq_lengths = mask.sum(1).float()
+        embeddings = embeddings.masked_fill(mask.unsqueeze(-1) == False, 0.)
+        return embeddings.sum(1)/seq_lengths.unsqueeze(-1)
 
 class GPTCreator:
     @classmethod
@@ -402,3 +502,17 @@ class GPT2Creator:
         logging.info(f'Unset params: {missing}')
         logging.info(f'Unused checkpoint fields: {unused}')
         return tlm
+
+    @classmethod
+    def pooled_enc_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, pool_id=None, **kwargs):
+        if os.path.isdir(checkpoint_file_or_dir):
+            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+        else:
+            checkpoint = checkpoint_file_or_dir
+        hf_dict = torch.load(checkpoint, map_location=map_location)
+        vocab_size, hidden_size = GPT2Creator.get_vocab_and_hidden_dims(hf_dict)
+        enc = GPT2TransformerPooledEncoder(vocab_size, pool_id=pool_id, **kwargs)
+        missing, unused = GPT2Creator.convert_state_dict(enc, hf_dict)
+        logging.info(f'Unset params: {missing}')
+        logging.info(f'Unused checkpoint fields: {unused}')
+        return enc
