@@ -2,7 +2,11 @@
 
 ## A Tiny Library for Transformers from the ground up
 
-Minimal PyTorch implementation of common Transformer architectures (starting with BERT).
+Minimal PyTorch implementation of common Transformer architectures.  Currently implements
+- GPT
+- GPT2
+- BERT/RoBERTa
+
 This code was written for a (not-yet complete) Colab Tutorial
 
 The first part is up:
