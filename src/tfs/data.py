@@ -25,6 +25,10 @@ def jsonl_parser(field: str = 'x') -> Callable:
 
 
 def gpt2_splitter():
+    """This is the tokenizer applied to GPT2.  Its not needed now, as Tokenizers provides this logic
+
+    :return: A function to tokenize a string into tokens (prior to subword splitting)
+    """
     import regex
 
     BPE_PATTERN = regex.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
@@ -227,7 +231,6 @@ def read_cls_dataset(
     tokenizer,
     pad_index=0,
     get_data_fn: Optional[Callable] = None,
-    splitter_fn: Callable = str.split,
     max_seq_len=512,
     label_list: Optional[List[str]] = None,
 ) -> TensorDataset:
@@ -250,7 +253,7 @@ def read_cls_dataset(
             if label not in label2index:
                 label2index[label] = label_offset
                 label_offset += 1
-            tokens = torch.tensor(tokenizer.encode(' '.join(splitter_fn(example_str))).ids)
+            tokens = torch.tensor(tokenizer.encode(example_str).ids)
             padded = torch.full((max_seq_len,), pad_index, dtype=tokens.dtype)
             padded[: len(tokens)] = tokens
             x_tensor.append(padded)
