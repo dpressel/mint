@@ -274,8 +274,7 @@ class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
             feed_forward_size,
             max_seq_len,
         )
-        if pool_id is None:
-            raise Exception("Non token-based pooling methods not currently supported")
+
         self.pooling = self.mean_pool if pool_id is None else self.pool_by_id
         self.pool_id = pool_id
 
