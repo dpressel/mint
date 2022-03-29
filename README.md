@@ -22,7 +22,7 @@ doesnt support them at this time.
 
 ## Pretraining
 
-There are 2 example programs at this time showing how to pretrain BERT from scratch (or continue pre-training on pre-trained BERT)
+There are example programs at this time showing how to pretrain from scratch (or continue pre-training on pre-trained models)
 
 ### In-memory training on a small dataset
 There are 2 pretraining examples, one is a toy example good for small datasets like Wikitext-2.
