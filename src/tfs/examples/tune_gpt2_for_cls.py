@@ -32,7 +32,7 @@ def read_cls_dataset_gpt2(
         tokenizer,
         pad_index=0,
         get_data_fn: Optional[Callable] = None,
-        max_seq_len=512,
+        max_seq_len=1024,
         label_list: Optional[List[str]] = None,
 ) -> TensorDataset:
     def read_space_delim_line(line: str):

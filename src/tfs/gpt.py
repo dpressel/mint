@@ -10,17 +10,15 @@ logger = logging.getLogger('tfs')
 
 
 class GPTLearnedPositionalEmbedding(nn.Module):
-    """Learned positional embeddings for BERT
+    """Learned positional embeddings for GPT
 
     The embeddings are a combination of 2 inputs, word embeddings, positional embeddings.
     The positional embedding is a learned vector that uses the index offset of the input token.
     The word embeddings is a learned vector that uses the word one-hots to convert to a dense representation.
     Each of these embeddings are added together in the forward
-
-    TODO: dropout value should be configurable
     """
 
-    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512, dropout = 0.1):
+    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512, dropout: float = 0.1):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
         self.position_embeddings = nn.Embedding(max_seq_len, hidden_dim)
@@ -38,7 +36,7 @@ class GPTLearnedPositionalEmbedding(nn.Module):
         return nn.functional.dropout(x, self.dropout) if self.training else x
 
     def forward(self, x: torch.Tensor, _: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """Takes a tensor of shape `[B, T]` and an optional `token_type` of same shape
+        """Takes a tensor of shape `[B, T]`.  There is a second parameter, but its ignored here
 
         :param x: A tensor of word one-hots, shape `[B, T]`
         :param _: Ignored, as we dont have this in GPT
@@ -228,7 +226,7 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
 
 
 class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
-    """Use our Transformer encoder with a pooling head.  For BERT, this head is pretrained on NSP
+    """Use our Transformer encoder with a pooling head.
 
     We will use this model for classification
     """
@@ -260,6 +258,9 @@ class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
         :param layer_norm_eps: The noising term for layer norm
         :param activation: The activation function to use throughout
         :param feed_forward_size: An optional value to set for the FFN MLP output size, defaults to 4*hidden_size
+        :param output: An optional projection layer to apply at the end
+        :param max_seq_len: The maximum seq len, for GPT2 this should be 1024
+        :param pool_id: An optional integer value to use for the pooling token.  If not set, we use mean pooling
         """
         super().__init__(
             GPTLearnedPositionalEmbedding,
@@ -325,6 +326,7 @@ class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
         seq_lengths = mask.sum(1).float()
         embeddings = embeddings.masked_fill(mask.unsqueeze(-1) == False, 0.)
         return embeddings.sum(1)/seq_lengths.unsqueeze(-1)
+
 
 class GPTCreator:
     @classmethod
@@ -396,7 +398,10 @@ class GPTCreator:
 
     @classmethod
     def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
-        embeddings_weight = hf_dict[[k for k in hf_dict if 'tokens_embed.weight' in k][0]]
+        try:
+            embeddings_weight = hf_dict[[k for k in hf_dict if 'tokens_embed.weight' in k][0]]
+        except:
+            embeddings_weight = hf_dict[[k for k in hf_dict if 'embeddings.word_embeddings.weight' in k][0]]
         return embeddings_weight.shape
 
     @classmethod
@@ -485,7 +490,12 @@ class GPT2Creator:
 
     @classmethod
     def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
-        embeddings_weight = hf_dict[[k for k in hf_dict if 'wte.weight' in k][0]]
+        try:
+
+            embeddings_weight = hf_dict[[k for k in hf_dict if 'wte.weight' in k][0]]
+        except:
+            embeddings_weight = hf_dict[[k for k in hf_dict if 'embeddings.word_embeddings.weight' in k][0]]
+
         return embeddings_weight.shape
 
     @classmethod

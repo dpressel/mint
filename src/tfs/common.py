@@ -151,9 +151,6 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
     is applied followed by an activation and down-projection back to the input size. Dropout is again applied,
     and again we add the output to the input of FFN.
 
-    As this is a post-layer-norm architecture, a normalization operation should be applied prior to sending the
-    data through this layer
-
     """
 
     def __init__(
@@ -420,3 +417,8 @@ class PreLayerNormTransformerEncoder(nn.Module):
             module.weight.data.normal_(mean=0.0, std=0.02)
         if isinstance(module, (nn.Linear, nn.LayerNorm)) and module.bias is not None:
             module.bias.data.zero_()
+
+        # TODO: GPT2 only, move this up into the LM?
+        for name, p in module.named_parameters():
+            if "ffn.2.weight" in name or "output.weight" in name:
+                p.data.normal_(mean=0.0, std=(0.02 / math.sqrt(2 * len(self.encoder))))
