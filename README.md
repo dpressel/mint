@@ -7,12 +7,10 @@ Minimal PyTorch implementation of common Transformer architectures.  Currently i
 - GPT2
 - BERT/RoBERTa
 
-This code was written for a (not-yet complete) Colab Tutorial
-
-The first part is up:
+This code was written for a (not-yet-complete) Colab Tutorial
 
 - [BERT from scratch](https://colab.research.google.com/drive/175hnhLkJcXH40tGGpO-1kbBrb2IIcIuT?usp=sharing)
-
+- [GPT & GPT2 from scratch](https://colab.research.google.com/drive/1svaeO-TF1UEEIq8aew4B5x-y4i79fIXv?usp=sharing)
 The code here is factored out here as a python package for easy use outside of the tutorial.
 
 Because this is written for a tutorial to explain the modeling and training approach, we currently depend on the
