@@ -9,6 +9,24 @@ import logging
 logger = logging.getLogger('tfs')
 
 
+class WeightTiedVocabProjection(nn.Module):
+    """Projection layer tied to the input embeddings
+
+    This is equivalent to an nn.Linear(hidden_size, vocab_size, bias=False) where the weights come from the
+    input word embeddings.  The embeddings are passed in, and we use their weights for our forward function.
+    """
+    def __init__(self, from_module):
+        super().__init__()
+        self.from_module = from_module
+
+    @property
+    def weight(self):
+        return self.from_module.weight
+
+    def forward(self, x):
+        return nn.functional.linear(x, self.weight)
+
+
 class MultiHeadedAttention(nn.Module):
     """Multi-headed attention implementation using scaled dot product
 

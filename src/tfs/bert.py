@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.common import TransformerEncoder
+from tfs.common import TransformerEncoder, WeightTiedVocabProjection
 import logging
 
 logger = logging.getLogger('tfs')
@@ -234,6 +234,7 @@ class TransformerMLM(TransformerEncoder):
         self.transform = nn.Linear(hidden_size, hidden_size)
         self.layer_norm = nn.LayerNorm(hidden_size, layer_norm_eps)
         self.activation = activation
+        self.output_proj = WeightTiedVocabProjection(self.embeddings.word_embeddings)
         self.output_bias = nn.Parameter(torch.zeros(vocab_size))
         self.apply(self.init_layer_weights)
 
@@ -243,9 +244,10 @@ class TransformerMLM(TransformerEncoder):
         :param x: transformer output
         :return: word predictions
         """
-        return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(
-            1, 2
-        ) + self.output_bias
+        return self.output_proj(x) + self.output_bias
+        #return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(
+        #    1, 2
+        #) + self.output_bias
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=0)
