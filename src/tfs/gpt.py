@@ -52,7 +52,7 @@ class GPTLearnedPositionalEmbedding(nn.Module):
 
     @property
     def weight(self):
-        """For generation, we will need access to the word_embeddings.  Those are transposed to project from a dense
+        """Access word_embeddings weights
 
         :return: The word_embeddings weights
         """
