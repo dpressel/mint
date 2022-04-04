@@ -245,9 +245,6 @@ class TransformerMLM(TransformerEncoder):
         :return: word predictions
         """
         return self.output_proj(x) + self.output_bias
-        #return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(
-        #    1, 2
-        #) + self.output_bias
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=0)
