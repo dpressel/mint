@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.common import PreLayerNormTransformerEncoder, TransformerEncoder
+from tfs.common import PreLayerNormTransformerEncoder, TransformerEncoder, WeightTiedVocabProjection
 import logging
 
 logger = logging.getLogger('tfs')
@@ -52,7 +52,7 @@ class GPTLearnedPositionalEmbedding(nn.Module):
 
     @property
     def weight(self):
-        """For generation, we will need access to the word_embeddings.  Those are transposed to project from a dense
+        """Access word_embeddings weights
 
         :return: The word_embeddings weights
         """
@@ -110,15 +110,9 @@ class GPTTransformerLM(TransformerEncoder):
             .unsqueeze(0),
         )
 
+        self.output_layer = WeightTiedVocabProjection(self.embeddings.word_embeddings)
         self.apply(self.init_layer_weights)
 
-    def output_layer(self, x: torch.Tensor) -> torch.Tensor:
-        """Affine transformation from final transformer layer dim size to the vocabulary space
-
-        :param x: transformer output
-        :return: word predictions
-        """
-        return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(1, 2)
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=0)
@@ -193,15 +187,8 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
             .unsqueeze(0),
         )
 
+        self.output_layer = WeightTiedVocabProjection(self.embeddings.word_embeddings)
         self.apply(self.init_layer_weights)
-
-    def output_layer(self, x: torch.Tensor) -> torch.Tensor:
-        """Affine transformation from final transformer layer dim size to the vocabulary space
-
-        :param x: transformer output
-        :return: word predictions
-        """
-        return (self.embeddings.word_embeddings.weight.unsqueeze(0) @ x.transpose(1, 2)).transpose(1, 2)
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=0)
