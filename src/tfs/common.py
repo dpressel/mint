@@ -106,14 +106,12 @@ class MultiHeadedEncoderDecoderAttention(nn.Module):
         self.d_k = d_k
         self.scale = 1 / math.sqrt(d_k)
 
-    def forward(self, src: torch.Tensor, dst: torch.Tensor, src_mask: Optional[torch.Tensor] = None,
-                dst_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
 
         :param src: A `[B, T_q, C]` tensor where B is batch, T_q is time, C is hidden size
         :param dst: A `[B, T_k, C]` tensor where B is batch, T_k is time, C is hidden size
-        :param src_mask: An optional mask to apply to the src (keys) tensor
-        :param dst_mask: An optional mask to apply to the dst (query) tensor
+        :param mask: An optional mask to apply to the src (keys) tensor
         :return: The attended value vector projected into the output space
         """
         B, T_k, _ = src.shape
@@ -125,13 +123,7 @@ class MultiHeadedEncoderDecoderAttention(nn.Module):
         # [B, H, T_q, D] x [B, H, D, T_k] = [B, H, T_q, T_k]
         dot_prod = (query_vec @ key_vec.transpose(-1, -2)) * self.scale
 
-        # There might be source masking if there is zero-pad in the source
-        # There should be destination masking (triangular) for timesteps
-        if src_mask is not None and dst_mask is None:
-            raise Exception("If you provide a source mask, we also require a destination mask")
-
-        if dst_mask is not None:
-            mask = dst_mask & src_mask if src_mask else dst_mask
+        if mask is not None:
             dot_prod = dot_prod.masked_fill(mask == False, -1e9)
 
         attn = nn.functional.softmax(dot_prod, dim=-1)
