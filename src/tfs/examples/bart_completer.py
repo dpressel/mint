@@ -7,7 +7,7 @@ from prompt_toolkit.history import FileHistory
 from tokenizers import Tokenizer
 from bart import BartCreator
 logger = logging.getLogger(__file__)
-
+DECODER_START_TOKEN = 2
 """An example program where you can provide your BART model with a priming sequence and have it complete
 """
 
@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--model", type=str, required=True, help="Start from a model")
     parser.add_argument("--tok_file", type=str, required=True, help="Path to tokenizer.json file")
     parser.add_argument("--query", type=str, help="Optional query.  If you pass this we wont use the repl")
-    parser.add_argument("--history_file", type=str, default=".gpt_history")
+    parser.add_argument("--history_file", type=str, default=".bart_history")
     parser.add_argument("--max_len", type=int, default=50)
     parser.add_argument("--sample", action="store_true")
     parser.add_argument("--temperature", default=1.0, type=float)
@@ -38,7 +38,7 @@ def main():
         tokenized_input = tokenizer.encode(query)
         logger.info("Input Sequence: %s", ' '.join(tokenized_input.tokens))
         input_ids = torch.tensor(tokenized_input.ids, device=args.device).unsqueeze(0)
-        outputs = [0]  # BOS token
+        outputs = [DECODER_START_TOKEN]
         with torch.no_grad():
 
             for i in range(args.max_len):

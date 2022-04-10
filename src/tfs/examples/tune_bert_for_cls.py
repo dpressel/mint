@@ -7,6 +7,7 @@ import sys
 import torch
 import logging
 from tqdm import tqdm
+PAD_VALUE = 0
 
 logger = logging.getLogger(__file__)
 
@@ -76,9 +77,8 @@ def train_epoch(epoch, loss_function, model, optimizer, train_loader, device):
             f"train epoch {epoch + 1}, step {i}: loss {train_loss.avg:.3f}, accuracy {train_acc:.2f}%"
         )
 
-
 def trim_to_shortest_len(batch):
-    max_len = max((example[0] != 0).sum() for example in batch)
+    max_len = max((example[0] != PAD_VALUE).sum() for example in batch)
     y = torch.stack([example[1] for example in batch])
     x = torch.stack([example[0][:max_len] for example in batch])
     return x, y

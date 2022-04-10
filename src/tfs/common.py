@@ -619,7 +619,7 @@ class TransformerEncoderDecoder(nn.Module):
 
         # TODO: is this general enough, or push down to BART impl?
         self.decoder_embeddings.word_embeddings = self.encoder_embeddings.word_embeddings
-        self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
+
         self.encoder = nn.ModuleList(
             [
                 TransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size)
@@ -644,8 +644,8 @@ class TransformerEncoderDecoder(nn.Module):
                     dtype=torch.uint8,
                 )
             )
-            .unsqueeze(0)
-            .unsqueeze(0),
+                .unsqueeze(0)
+                .unsqueeze(0),
         )
 
     @property
@@ -696,10 +696,7 @@ class TransformerEncoderDecoder(nn.Module):
         dst_enc = self.decoder_embeddings_layer_norm(dst_enc)
         for t in self.decoder:
             dst_enc = t(src_enc, dst_enc, src_mask, futures_mask)
-
-        y = self.output_proj(dst_enc)
-
-        return y
+        return dst_enc
 
     def init_layer_weights(self, module):
         """This not directly used on initialization.  If you want to use it, call `module.apply()` on it
@@ -712,3 +709,35 @@ class TransformerEncoderDecoder(nn.Module):
             module.weight.data.normal_(mean=0.0, std=0.02)
         if isinstance(module, (nn.Linear, nn.LayerNorm)) and module.bias is not None:
             module.bias.data.zero_()
+
+
+class TransformerEncoderDecoderLM(TransformerEncoderDecoder):
+
+    def __init__(
+            self,
+            EmbeddingClass: Callable,
+            vocab_size: int,
+            padding_idx: int = 0,
+            hidden_size: int = 768,
+            num_heads: int = 12,
+            num_encoder_layers: int = 6,
+            num_decoder_layers: int = 6,
+            dropout: float = 0.1,
+            layer_norm_eps=1e-12,
+            activation: nn.Module = nn.GELU(),
+            feed_forward_size: Optional[int] = None,
+            max_seq_len: int = 1024,
+            do_embeddings_layer_norm=True,
+    ):
+        super().__init__(EmbeddingClass, vocab_size, padding_idx, hidden_size, num_heads, num_encoder_layers,
+                         num_decoder_layers,
+                         dropout, layer_norm_eps, activation, feed_forward_size, max_seq_len, do_embeddings_layer_norm)
+        self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
+
+    def forward(
+            self, src: torch.Tensor, dst: torch.Tensor, src_mask: Optional[torch.Tensor] = None,
+            dst_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        dst_enc = super().forward(src, dst, src_mask, dst_mask)
+        y = self.output_proj(dst_enc)
+
+        return y
