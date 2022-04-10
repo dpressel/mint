@@ -312,7 +312,7 @@ class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
         return embeddings[inputs == self.pool_id]
 
     def mean_pool(self, inputs, embeddings):
-        mask = inputs != 0
+        mask = (inputs != self.padding_idx)
         seq_lengths = mask.sum(1).float()
         embeddings = embeddings.masked_fill(mask.unsqueeze(-1) == False, 0.0)
         return embeddings.sum(1) / seq_lengths.unsqueeze(-1)
