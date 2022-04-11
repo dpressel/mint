@@ -5,6 +5,7 @@ import os
 from typing import Optional
 from tfs.common import TransformerEncoderDecoder, TransformerEncoderDecoderLM
 import logging
+import random
 
 logger = logging.getLogger('tfs')
 
@@ -215,32 +216,61 @@ class BartCreator:
         logging.info(f'Unused checkpoint fields: {unused}')
         return seq2seq
 
+def sentence_permute(inputs, labels, vocab):
+    """A document is divided into sentences which are shuffled in random order.
 
-def noise_inputs(inputs, vocab_size, mask_value, ignore_prefix=True, ignore_suffix=True, mask_prob=0.15, pad_value=0):
-    """Apply the BERT masking algorithm
+    This is used in the final model in the paper.  Our version of this is going to be an approximation where
+    we demarcate sentences with common punctuation marks
 
-    Identify `mask_prob` fraction of inputs to be corrupted.  80% of those are [MASK] replaced, 10% are
-    corrupted with an alternate word, 10% remain the same.  All of the other values are 0 in the label (output)
-
-    :param inputs: An array of one-hot integers
-    :param vocab_size: The size of the vocab
-    :param mask_value: The token ID for [MASK]
-    :param ignore_prefix: Should we avoid masking the first token (usually yeah)
-    :param ignore_suffix: Should we avoid masking the suffix (probably, yeah)
-    :param mask_prob: A fraction to corrupt (usually 15%)
-    :param pad_value: The value for pad tokens in the inputs
-    :return: the corrupted inputs and the truth labels for those inputs, both equal length
+    :param inputs: The inputs to the encoder
+    :param labels: The outputs of the decoder.  This starts as a copy of inputs, and each operation transforms it
+    :param vocab: A dictionary of strings to integers
+    :return: The transformed labels
     """
-    labels = np.copy(inputs)
-    masked_indices = np.random.binomial(size=len(inputs), n=1, p=mask_prob)
+    pad_value = vocab.get('<pad>')
+    eos_value = vocab.get('</s>')
+    end_values = [vocab.get(punc) for punc in [".", "!", "?"]]
+    mask = (labels != pad_value)
+
+    eos_mask = np.zeros_like(mask)
+    for eos in end_values:
+        this_eos = (inputs == eos)
+        eos_mask = eos_mask | this_eos
+
+    eos_mask &= mask
+    def _next_sentence(ids):
+        end_positions = [0] + np.where(eos_mask)[0].tolist() + [len(ids)]
+        for i, (begin, end) in enumerate(zip(end_positions[:-1], end_positions[1:])):
+            yield ids[begin:end]
+    reordered = [sentence for sentence in _next_sentence(inputs[1:-1])]
+    random.shuffle(reordered)
+    reordered = [inputs[:1]] + reordered + [inputs[-1:]]
+    inputs_shuf = np.concatenate(reordered)
+    return inputs_shuf, labels
+
+
+def token_mask(inputs, labels, vocab):
+    """Following BERT, random tokens are sampled and replaced with <mask> token.
+
+    This is not used in the final model in the paper.  Unsuprisingly, text infilling is superior and easy in seq2seq
+
+    :param inputs: The inputs to the encoder
+    :param labels: The outputs of the decoder.  This starts as a copy of inputs, and each operation transforms it
+    :param vocab: A dictionary of strings to integers
+    :return: The transformed labels
+    """
+    pad_value = vocab.get('<pad>')
+    mask_value = vocab.get('<mask>')
+    # Bart's tokenizer doesnt actually split sentences, but it does produce atomic tokens for end punc,
+    # so this is a very coarse approximation
+    vocab_size = len(vocab)
+    masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
     # make sure if the input is padded we dont mask
     masked_indices = masked_indices & (labels != pad_value)
     # ensure at least one token is masked
     masked_indices[np.random.randint(1, sum(labels != pad_value))] = 1
-    if ignore_prefix:
-        masked_indices[0] = 0
-    if ignore_suffix:
-        masked_indices[-1] = 0
+    masked_indices[0] = 0
+    masked_indices[-1] = 0
     # Anything not masked is 0 so no loss
     labels[masked_indices == 0] = 0
     # Of the masked items, mask 80% of them with [MASK]
@@ -254,6 +284,103 @@ def noise_inputs(inputs, vocab_size, mask_value, ignore_prefix=True, ignore_suff
     # We will assume here that PAD is one of the tokens near the beginning of the vocab
     random_words = np.random.randint(low=pad_value + 1, high=vocab_size - 1, size=len(inputs))
     inputs[indices_random == 1] = random_words[indices_random == 1]
+    return inputs, labels
+
+def token_delete(inputs, labels, vocab):
+    """Random tokens are deleted from the input and the model must decide which positions are missing input.
+
+    In contrast to token masking, the model must decide which positions are missing inputs.  This is not used in
+    the final model produced in the paper
+
+    :param inputs: The inputs to the encoder
+    :param labels: The outputs of the decoder.  This starts as a copy of inputs, and each operation transforms it
+    :param vocab: A dictionary of strings to integers
+    :return: The transformed labels
+    """
+    pad_value = vocab.get('<pad>')
+    deleted_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
+    inputs_del = np.ones_like(inputs)
+
+    # make sure if the input is padded we dont mask
+    deleted_indices = deleted_indices & (labels != pad_value)
+    unmutated = inputs[deleted_indices == False]
+    inputs_del[:len(unmutated)] = unmutated
+    return inputs_del, labels
+
+
+def document_rotate(inputs, labels, _):
+    """A token is chosen uniformly at random, and the document is rotated so that it begins with that token.
+
+    This task trains the model to identify the start of the document.  This is not used in the final model produced in
+    the paper.  The function assumes that no padding is required in the encoder.  This should be true during pretraining
+    but is not necessarily correct in fine-tuning (e.g. it would not necessarily be true for NMT)
+
+    :param inputs: The inputs to the encoder
+    :param labels: The outputs of the decoder.  This starts as a copy of inputs, and each operation transforms it
+    :param vocab: A dictionary of strings to integers
+    :return: The transformed labels
+    """
+
+    # Leave first token on the front
+    start_token = np.random.choice(np.arange(len(inputs)-1))
+    inputs_rot = np.array([inputs[0]] + np.roll(inputs[1:-1], -start_token).tolist() + [inputs[-1]])
+    return inputs_rot, labels
+
+def text_infill(inputs, labels, vocab):
+    """N-grams are sampled and replaced by a single <mask> token.
+
+    A number of text spans are sampled, with span lengths drawn from a Poisson distribution
+    (λ = 3). Each span is replaced with a single <mask> token. 0-length spans correspond to the insertion of
+    <mask> tokens. Text infilling is inspired by SpanBERT (Joshi et al., 2019), but SpanBERT samples
+    span lengths from a different (clamped geometric) distribution, and replaces each span with a sequence of
+    <mask> tokens of exactly the same length. Text infilling teaches the model to predict how many tokens are
+    missing from a span.
+
+    :param inputs: The inputs to the encoder
+    :param labels: The outputs of the decoder.  This starts as a copy of inputs, and each operation transforms it
+    :param vocab: A dictionary of strings to integers
+    :return: The transformed labels
+    """
+    pad_value = vocab.get('<pad>')
+    mask_token = vocab.get('<mask>')
+    start_value = vocab.get('<s>')
+    eos_value = vocab.get('</s>')
+    span_lengths = np.random.poisson(3, len(inputs))
+    masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.3)
+    # make sure if the input is padded we dont mask
+    masked_indices = masked_indices & (labels != pad_value) & (labels != start_value) & (labels != eos_value)
+    last = 0
+    masked = []
+
+    for start in masked_indices.nonzero()[0]:
+        if start <= last:
+            continue
+        span_end = start+span_lengths[start]
+        if span_end >= len(inputs)-1:
+            break
+        masked += inputs[last:start].tolist() + [mask_token]
+        last = start+span_lengths[start]
+    if last < len(inputs):
+        masked += inputs[last:].tolist()
+
+    num_masked = (len(labels) - len(masked))
+    if num_masked > 0:
+        masked += [pad_value] * num_masked
+    return np.array(masked), labels
+
+def noise_inputs(inputs, vocab, ops=[sentence_permute, text_infill]):
+    """we use a combination of text infilling and masking 30% of the tokens in each doc and permuting all sentences
+
+    We mask 30% of tokens in each document, and permute all sentences. A
+    :param inputs: An array of one-hot integers
+    :param vocab: A dictionary of strings to integers
+    :param ops: A list of noising operations to complete (sequentially)
+    :return: the corrupted inputs and the truth labels for those inputs
+    """
+    labels = np.copy(inputs)
+    for op in ops:
+        inputs, labels = op(inputs, labels, vocab)
+
     return inputs, labels
 
 
