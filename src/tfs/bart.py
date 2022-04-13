@@ -129,11 +129,15 @@ class BartEncoderDecoderLM(TransformerEncoderDecoderLM):
             activation: nn.Module = nn.GELU(),
             feed_forward_size: Optional[int] = None,
             max_seq_len: int = 1024,
+            **kwargs,
     ):
         super().__init__(BartLearnedPositionalEmbedding, vocab_size, padding_idx, hidden_size, num_heads,
                          num_encoder_layers, num_decoder_layers, dropout, layer_norm_eps, activation, feed_forward_size,
                          max_seq_len)
 
+
+    def create_loss(self):
+        return nn.CrossEntropyLoss(ignore_index=1)
 
 class BartCreator:
     @classmethod
@@ -228,7 +232,6 @@ def sentence_permute(inputs, labels, vocab):
     :return: The transformed labels
     """
     pad_value = vocab.get('<pad>')
-    eos_value = vocab.get('</s>')
     end_values = [vocab.get(punc) for punc in [".", "!", "?"]]
     mask = (labels != pad_value)
 
@@ -377,28 +380,28 @@ def noise_inputs(inputs, vocab, ops=[sentence_permute, text_infill]):
     :param ops: A list of noising operations to complete (sequentially)
     :return: the corrupted inputs and the truth labels for those inputs
     """
+    decoder_demarc = vocab.get('</s>')
     labels = np.copy(inputs)
     for op in ops:
         inputs, labels = op(inputs, labels, vocab)
-
+    labels = np.concatenate((labels, np.array([decoder_demarc], dtype=labels.dtype)))
+    labels[0] = decoder_demarc
     return inputs, labels
 
 
 class NoisingCollator:
     """For each item in a batch, noise it and return noised and denoised tensors"""
 
-    def __init__(self, vocab_size, mask_value, pad_value=0):
+    def __init__(self, vocab):
         super().__init__()
-        self.vocab_size = vocab_size
-        self.mask_value = mask_value
-        self.pad_value = pad_value
+        self.vocab = vocab
 
     def __call__(self, batch):
         """Take a batch of inputs of X, and convert it to a noised X, Y"""
         noised = []
         denoised = []
         for x in batch:
-            x_noise, x_recon = noise_inputs(x[0].numpy(), self.vocab_size, self.mask_value, self.pad_value)
+            x_noise, x_recon = noise_inputs(x[0].numpy(), self.vocab)
             noised.append(torch.from_numpy(x_noise))
             denoised.append(torch.from_numpy(x_recon))
 
