@@ -332,9 +332,7 @@ class SingleDeviceLMTrainer:
             self.optimizer.step()
             self.global_step += 1
             if self.global_step == self.total_steps:
-                progress.set_description(
-                    f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
-                )
+                progress.set_description(f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
                 self._save_checkpoint(model_base)
                 break
             self.optimizer.zero_grad()
@@ -392,31 +390,29 @@ class SingleDeviceLMTrainer:
         torch.save(self.model.state_dict(), checkpoint_name + '.pth')
 
 
-
-
 class SingleDeviceSeq2SeqTrainer:
     """Simple trainer that works on a single machine/device"""
 
     def __init__(
-            self,
-            model,
-            lr: float = 1.0e-4,
-            batch_size: int = 256,
-            weight_decay: float = 1.0e-2,
-            warmup_fract: int = 0.1,
-            plateau_fract: int = 0.0,
-            decay_type: str = 'cosine',
-            total_steps: Optional[int] = None,
-            global_step: int = 0,
-            alpha_decay: float = 0.0,
-            betas: Tuple[float] = (0.9, 0.98),
-            eps=1e-08,
-            grad_clip: float = 1.0,
-            num_train_workers=4,
-            num_valid_workers=1,
-            dont_decay_weights: Optional[List[str]] = None,
-            collate_function: Optional[Callable] = None,
-            **kwargs,
+        self,
+        model,
+        lr: float = 1.0e-4,
+        batch_size: int = 256,
+        weight_decay: float = 1.0e-2,
+        warmup_fract: int = 0.1,
+        plateau_fract: int = 0.0,
+        decay_type: str = 'cosine',
+        total_steps: Optional[int] = None,
+        global_step: int = 0,
+        alpha_decay: float = 0.0,
+        betas: Tuple[float] = (0.9, 0.98),
+        eps=1e-08,
+        grad_clip: float = 1.0,
+        num_train_workers=4,
+        num_valid_workers=1,
+        dont_decay_weights: Optional[List[str]] = None,
+        collate_function: Optional[Callable] = None,
+        **kwargs,
     ):
 
         if weight_decay == 0.0:
@@ -467,14 +463,14 @@ class SingleDeviceSeq2SeqTrainer:
         return steps_per_epoch
 
     def train_steps(
-            self,
-            train_dataset: Dataset,
-            eval_dataset: Dataset,
-            model_base: str,
-            num_steps: int = 250_000,
-            saves_per_cycle: int = 1,
-            train_cycle_size: int = 10000,
-            eval_cycle_size: int = 2500,
+        self,
+        train_dataset: Dataset,
+        eval_dataset: Dataset,
+        model_base: str,
+        num_steps: int = 250_000,
+        saves_per_cycle: int = 1,
+        train_cycle_size: int = 10000,
+        eval_cycle_size: int = 2500,
     ):
         """Train for a fixed number of steps using an infinite dataset
 
@@ -562,12 +558,12 @@ class SingleDeviceSeq2SeqTrainer:
         plt.show()
 
     def train_epochs(
-            self,
-            train_dataset: Dataset,
-            eval_dataset: Dataset,
-            model_base: str,
-            num_epochs: int = 1,
-            saves_per_epoch: int = 1,
+        self,
+        train_dataset: Dataset,
+        eval_dataset: Dataset,
+        model_base: str,
+        num_epochs: int = 1,
+        saves_per_epoch: int = 1,
     ):
         """Epoch training interface for trainer for Map-style Datasets
 
@@ -694,9 +690,7 @@ class SingleDeviceSeq2SeqTrainer:
             self.optimizer.step()
             self.global_step += 1
             if self.global_step == self.total_steps:
-                progress.set_description(
-                    f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
-                )
+                progress.set_description(f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
                 self._save_checkpoint(model_base)
                 break
             self.optimizer.zero_grad()

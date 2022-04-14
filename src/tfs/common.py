@@ -135,7 +135,7 @@ class MultiHeadedEncoderDecoderAttention(nn.Module):
 
 
 def create_feed_forward_layer(
-        hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.GELU()
+    hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.GELU()
 ):
     """Create a feed-forward layer (called FFN in the paper)
 
@@ -164,13 +164,13 @@ class TransformerEncoderLayer(nn.Module):
     """
 
     def __init__(
-            self,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
+        self,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -227,13 +227,13 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
     """
 
     def __init__(
-            self,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
+        self,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -295,19 +295,19 @@ class TransformerEncoder(nn.Module):
     """
 
     def __init__(
-            self,
-            EmbeddingClass: Callable,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 512,
-            do_embeddings_layer_norm=True,
+        self,
+        EmbeddingClass: Callable,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
+        do_embeddings_layer_norm=True,
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -359,7 +359,7 @@ class TransformerEncoder(nn.Module):
         return mask.unsqueeze(1).unsqueeze(1).to(device=x.device)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
 
@@ -400,18 +400,18 @@ class PreLayerNormTransformerEncoder(nn.Module):
     """
 
     def __init__(
-            self,
-            EmbeddingClass: Callable,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 512,
+        self,
+        EmbeddingClass: Callable,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -463,7 +463,7 @@ class PreLayerNormTransformerEncoder(nn.Module):
         return mask.unsqueeze(1).unsqueeze(1).to(device=x.device)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
 
@@ -509,13 +509,13 @@ class TransformerDecoderLayer(nn.Module):
     """
 
     def __init__(
-            self,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
+        self,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -549,8 +549,13 @@ class TransformerDecoderLayer(nn.Module):
         """
         return nn.functional.dropout(x, self.dropout) if self.training else x
 
-    def forward(self, src: torch.Tensor, dst: torch.Tensor, src_mask: Optional[torch.Tensor] = None,
-                dst_mask: Optional[torch.Tensor] = None):
+    def forward(
+        self,
+        src: torch.Tensor,
+        dst: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
+    ):
         """Pass an x tensor and optional mask through the transformer layer
 
         :param x: A `[B, T, C]` tensor where B is batch, T is time, and C is the num hidden units
@@ -558,8 +563,7 @@ class TransformerDecoderLayer(nn.Module):
         :return: The output of the block
         """
         y = self.self_attention_layer_norm(dst + self.maybe_dropout(self.self_attention(dst, dst_mask)))
-        y = self.encoder_attention_layer_norm(
-            y + self.maybe_dropout(self.encoder_attention(src, y, src_mask)))
+        y = self.encoder_attention_layer_norm(y + self.maybe_dropout(self.encoder_attention(src, y, src_mask)))
         y = self.output_layer_norm(y + self.maybe_dropout(self.ffn(y)))
         return y
 
@@ -577,20 +581,20 @@ class TransformerEncoderDecoder(nn.Module):
     """
 
     def __init__(
-            self,
-            EmbeddingClass: Callable,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_encoder_layers: int = 6,
-            num_decoder_layers: int = 6,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 512,
-            do_embeddings_layer_norm=True,
+        self,
+        EmbeddingClass: Callable,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
+        do_embeddings_layer_norm=True,
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -612,10 +616,12 @@ class TransformerEncoderDecoder(nn.Module):
         self.decoder_embeddings_layer_norm = (
             nn.LayerNorm(hidden_size, layer_norm_eps) if do_embeddings_layer_norm else nn.Identity()
         )
-        self.encoder_embeddings = EmbeddingClass(vocab_size, hidden_size, padding_idx=padding_idx,
-                                                 max_seq_len=max_seq_len)
-        self.decoder_embeddings = EmbeddingClass(vocab_size, hidden_size, padding_idx=padding_idx,
-                                                 max_seq_len=max_seq_len)
+        self.encoder_embeddings = EmbeddingClass(
+            vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
+        )
+        self.decoder_embeddings = EmbeddingClass(
+            vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
+        )
 
         # TODO: is this general enough, or push down to BART impl?
         self.decoder_embeddings.word_embeddings = self.encoder_embeddings.word_embeddings
@@ -644,8 +650,8 @@ class TransformerEncoderDecoder(nn.Module):
                     dtype=torch.uint8,
                 )
             )
-                .unsqueeze(0)
-                .unsqueeze(0),
+            .unsqueeze(0)
+            .unsqueeze(0),
         )
 
     @property
@@ -673,8 +679,12 @@ class TransformerEncoderDecoder(nn.Module):
         return mask.unsqueeze(1).unsqueeze(1).to(device=x.device)
 
     def forward(
-            self, src: torch.Tensor, dst: torch.Tensor, src_mask: Optional[torch.Tensor] = None,
-            dst_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        self,
+        src: torch.Tensor,
+        dst: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """
 
         :param src: A one-hot (long) tensor of shape `[B, T_k]`
@@ -712,31 +722,46 @@ class TransformerEncoderDecoder(nn.Module):
 
 
 class TransformerEncoderDecoderLM(TransformerEncoderDecoder):
-
     def __init__(
-            self,
-            EmbeddingClass: Callable,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_encoder_layers: int = 6,
-            num_decoder_layers: int = 6,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 1024,
-            do_embeddings_layer_norm=True,
+        self,
+        EmbeddingClass: Callable,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 1024,
+        do_embeddings_layer_norm=True,
     ):
-        super().__init__(EmbeddingClass, vocab_size, padding_idx, hidden_size, num_heads, num_encoder_layers,
-                         num_decoder_layers,
-                         dropout, layer_norm_eps, activation, feed_forward_size, max_seq_len, do_embeddings_layer_norm)
+        super().__init__(
+            EmbeddingClass,
+            vocab_size,
+            padding_idx,
+            hidden_size,
+            num_heads,
+            num_encoder_layers,
+            num_decoder_layers,
+            dropout,
+            layer_norm_eps,
+            activation,
+            feed_forward_size,
+            max_seq_len,
+            do_embeddings_layer_norm,
+        )
         self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
 
     def forward(
-            self, src: torch.Tensor, dst: torch.Tensor, src_mask: Optional[torch.Tensor] = None,
-            dst_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        self,
+        src: torch.Tensor,
+        dst: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         dst_enc = super().forward(src, dst, src_mask, dst_mask)
         y = self.output_proj(dst_enc)
 

@@ -7,6 +7,7 @@ import sys
 import torch
 import logging
 from tqdm import tqdm
+
 PAD_VALUE = 0
 
 logger = logging.getLogger(__file__)
@@ -77,6 +78,7 @@ def train_epoch(epoch, loss_function, model, optimizer, train_loader, device):
             f"train epoch {epoch + 1}, step {i}: loss {train_loss.avg:.3f}, accuracy {train_acc:.2f}%"
         )
 
+
 def trim_to_shortest_len(batch):
     max_len = max((example[0] != PAD_VALUE).sum() for example in batch)
     y = torch.stack([example[1] for example in batch])
@@ -111,9 +113,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
     tokenizer = BertWordPieceTokenizer(args.vocab_file, lowercase=args.lowercase)
     # TODO: read the pad_index in
-    train_set, labels = read_cls_dataset(
-        args.train_file, tokenizer, pad_index=0, max_seq_len=args.max_seq_len
-    )
+    train_set, labels = read_cls_dataset(args.train_file, tokenizer, pad_index=0, max_seq_len=args.max_seq_len)
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, collate_fn=trim_to_shortest_len
     )

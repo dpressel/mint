@@ -24,13 +24,15 @@ class BartLearnedPositionalEmbedding(nn.Module):
     The word embeddings is a learned vector that uses the word one-hots to convert to a dense representation.
     Each of these embeddings are added together in the forward
     """
+
     BART_POS_OFFSET = 2
 
     def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 1024):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
-        self.position_embeddings = nn.Embedding(max_seq_len + BartLearnedPositionalEmbedding.BART_POS_OFFSET,
-                                                hidden_dim)
+        self.position_embeddings = nn.Embedding(
+            max_seq_len + BartLearnedPositionalEmbedding.BART_POS_OFFSET, hidden_dim
+        )
 
     def forward(self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Takes a tensor of shape `[B, T]` and an optional `token_type` of same shape
@@ -41,8 +43,9 @@ class BartLearnedPositionalEmbedding(nn.Module):
         """
         embed = self.word_embeddings(x)
 
-        position = self.position_embeddings(torch.arange(x.shape[-1], dtype=x.dtype).to(
-            x.device) + BartLearnedPositionalEmbedding.BART_POS_OFFSET).unsqueeze(0)
+        position = self.position_embeddings(
+            torch.arange(x.shape[-1], dtype=x.dtype).to(x.device) + BartLearnedPositionalEmbedding.BART_POS_OFFSET
+        ).unsqueeze(0)
 
         return embed + position
 
@@ -57,53 +60,78 @@ class BartLearnedPositionalEmbedding(nn.Module):
 
 class BartEncoderDecoder(TransformerEncoderDecoder):
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_encoder_layers: int = 6,
-            num_decoder_layers: int = 6,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 1024,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 1024,
     ):
-        super().__init__(BartLearnedPositionalEmbedding, vocab_size, padding_idx, hidden_size, num_heads,
-                         num_encoder_layers, num_decoder_layers, dropout, layer_norm_eps, activation, feed_forward_size,
-                         max_seq_len)
+        super().__init__(
+            BartLearnedPositionalEmbedding,
+            vocab_size,
+            padding_idx,
+            hidden_size,
+            num_heads,
+            num_encoder_layers,
+            num_decoder_layers,
+            dropout,
+            layer_norm_eps,
+            activation,
+            feed_forward_size,
+            max_seq_len,
+        )
 
 
 class BartPooledEncoderDecoder(TransformerEncoderDecoder):
     EOS_TOKEN = 2
 
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_encoder_layers: int = 6,
-            num_decoder_layers: int = 6,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            output: Optional[nn.Module] = None,
-            max_seq_len: int = 1024,
-            **kwargs
-
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        output: Optional[nn.Module] = None,
+        max_seq_len: int = 1024,
+        **kwargs,
     ):
-        super().__init__(BartLearnedPositionalEmbedding, vocab_size, padding_idx, hidden_size, num_heads,
-                         num_encoder_layers, num_decoder_layers, dropout, layer_norm_eps, activation, feed_forward_size,
-                         max_seq_len)
+        super().__init__(
+            BartLearnedPositionalEmbedding,
+            vocab_size,
+            padding_idx,
+            hidden_size,
+            num_heads,
+            num_encoder_layers,
+            num_decoder_layers,
+            dropout,
+            layer_norm_eps,
+            activation,
+            feed_forward_size,
+            max_seq_len,
+        )
 
         self.output = output if output else nn.Identity()
 
     def forward(
-            self, src: torch.Tensor, dst: Optional[torch.Tensor] = None, src_mask: Optional[torch.Tensor] = None,
-            dst_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        self,
+        src: torch.Tensor,
+        dst: Optional[torch.Tensor] = None,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         dst = create_dst_from_src(src)
         dst_enc = super().forward(src, dst, src_mask, dst_mask)
 
@@ -117,27 +145,38 @@ class BartPooledEncoderDecoder(TransformerEncoderDecoder):
 
 class BartEncoderDecoderLM(TransformerEncoderDecoderLM):
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_encoder_layers: int = 6,
-            num_decoder_layers: int = 6,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 1024,
-            **kwargs,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 1024,
+        **kwargs,
     ):
-        super().__init__(BartLearnedPositionalEmbedding, vocab_size, padding_idx, hidden_size, num_heads,
-                         num_encoder_layers, num_decoder_layers, dropout, layer_norm_eps, activation, feed_forward_size,
-                         max_seq_len)
-
+        super().__init__(
+            BartLearnedPositionalEmbedding,
+            vocab_size,
+            padding_idx,
+            hidden_size,
+            num_heads,
+            num_encoder_layers,
+            num_decoder_layers,
+            dropout,
+            layer_norm_eps,
+            activation,
+            feed_forward_size,
+            max_seq_len,
+        )
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=1)
+
 
 class BartCreator:
     @classmethod
@@ -220,6 +259,7 @@ class BartCreator:
         logging.info(f'Unused checkpoint fields: {unused}')
         return seq2seq
 
+
 def sentence_permute(inputs, labels, vocab):
     """A document is divided into sentences which are shuffled in random order.
 
@@ -233,18 +273,20 @@ def sentence_permute(inputs, labels, vocab):
     """
     pad_value = vocab.get('<pad>')
     end_values = [vocab.get(punc) for punc in [".", "!", "?"]]
-    mask = (labels != pad_value)
+    mask = labels != pad_value
 
     eos_mask = np.zeros_like(mask)
     for eos in end_values:
-        this_eos = (inputs == eos)
+        this_eos = inputs == eos
         eos_mask = eos_mask | this_eos
 
     eos_mask &= mask
+
     def _next_sentence(ids):
         end_positions = [0] + np.where(eos_mask)[0].tolist() + [len(ids)]
         for i, (begin, end) in enumerate(zip(end_positions[:-1], end_positions[1:])):
             yield ids[begin:end]
+
     reordered = [sentence for sentence in _next_sentence(inputs[1:-1])]
     random.shuffle(reordered)
     reordered = [inputs[:1]] + reordered + [inputs[-1:]]
@@ -289,6 +331,7 @@ def token_mask(inputs, labels, vocab):
     inputs[indices_random == 1] = random_words[indices_random == 1]
     return inputs, labels
 
+
 def token_delete(inputs, labels, vocab):
     """Random tokens are deleted from the input and the model must decide which positions are missing input.
 
@@ -307,7 +350,7 @@ def token_delete(inputs, labels, vocab):
     # make sure if the input is padded we dont mask
     deleted_indices = deleted_indices & (labels != pad_value)
     unmutated = inputs[deleted_indices == False]
-    inputs_del[:len(unmutated)] = unmutated
+    inputs_del[: len(unmutated)] = unmutated
     return inputs_del, labels
 
 
@@ -325,9 +368,10 @@ def document_rotate(inputs, labels, _):
     """
 
     # Leave first token on the front
-    start_token = np.random.choice(np.arange(len(inputs)-1))
+    start_token = np.random.choice(np.arange(len(inputs) - 1))
     inputs_rot = np.array([inputs[0]] + np.roll(inputs[1:-1], -start_token).tolist() + [inputs[-1]])
     return inputs_rot, labels
+
 
 def text_infill(inputs, labels, vocab):
     """N-grams are sampled and replaced by a single <mask> token.
@@ -358,23 +402,31 @@ def text_infill(inputs, labels, vocab):
     for start in masked_indices.nonzero()[0]:
         if start <= last:
             continue
-        span_end = start+span_lengths[start]
-        if span_end >= len(inputs)-1:
+        span_end = start + span_lengths[start]
+        if span_end >= len(inputs) - 1:
             break
         masked += inputs[last:start].tolist() + [mask_token]
-        last = start+span_lengths[start]
+        last = start + span_lengths[start]
     if last < len(inputs):
         masked += inputs[last:].tolist()
 
-    num_masked = (len(labels) - len(masked))
+    num_masked = len(labels) - len(masked)
     if num_masked > 0:
         masked += [pad_value] * num_masked
     return np.array(masked), labels
 
+
 def noise_inputs(inputs, vocab, ops=[sentence_permute, text_infill]):
     """we use a combination of text infilling and masking 30% of the tokens in each doc and permuting all sentences
 
-    We mask 30% of tokens in each document, and permute all sentences. A
+    We mask 30% of tokens in each document, and permute all sentences.  The Y is an exact match of the X before
+    sentence permutation and N-gram masking (AKA text-infilling).  The first token of X should be 0 and the last
+    non-padded token of X should be 2.  Padding is 1 for BART (like RoBERTa).
+
+    The label copy is going to be one element longer, so that it can be used for the Y values as labels[:, 1:]
+    and for the teacher forcing as labels[:, :-1].  At the end of evaluation for an unperturbed sequence, the
+    output targets would match X.
+
     :param inputs: An array of one-hot integers
     :param vocab: A dictionary of strings to integers
     :param ops: A list of noising operations to complete (sequentially)
@@ -384,8 +436,7 @@ def noise_inputs(inputs, vocab, ops=[sentence_permute, text_infill]):
     labels = np.copy(inputs)
     for op in ops:
         inputs, labels = op(inputs, labels, vocab)
-    labels = np.concatenate((labels, np.array([decoder_demarc], dtype=labels.dtype)))
-    labels[0] = decoder_demarc
+    labels = np.concatenate((np.array([decoder_demarc], dtype=labels.dtype), labels))
     return inputs, labels
 
 

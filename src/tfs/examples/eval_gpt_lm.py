@@ -29,6 +29,7 @@ def create_single_file_dataset(tokenizer, fname: str, seq_len: int = 1024) -> Da
         num_subwords = y_tensors.nelement()
     return TensorDataset(x_tensors.view(num_samples, -1), y_tensors.view(num_samples, -1)), num_words, num_subwords
 
+
 def main():
     parser = argparse.ArgumentParser(description='GPT perplexity on test set')
     parser.add_argument("--model", type=str, required=True, help="Start from a model")
@@ -51,7 +52,9 @@ def main():
     model.to(args.device)
     loss_function = model.create_loss().to(args.device)
     eval_dataset, num_words, num_subwords = create_single_file_dataset(tokenizer, args.file, seq_len=seq_len)
-    logger.info("Num samples in dataset [%d], num words [%d], num subwords [%d]", len(eval_dataset), num_words, num_subwords)
+    logger.info(
+        "Num samples in dataset [%d], num words [%d], num subwords [%d]", len(eval_dataset), num_words, num_subwords
+    )
     eval_data_loader = DataLoader(eval_dataset, batch_size=args.batch_size)
 
     compute_perplexity(args.device, eval_data_loader, loss_function, model, num_subwords, num_words)
@@ -70,7 +73,7 @@ def compute_perplexity(device, eval_data_loader, loss_function, model, num_subwo
             avg.update(loss.item())
     loss = avg.avg
     ppl = math.exp(loss)
-    elapsed = (time.time() - start)
+    elapsed = time.time() - start
     print(f"Evaluation completed [{elapsed: .2f}s]")
     print(f"Subword loss & perplexity: loss {loss:.4f}. perplexity (subword): {ppl: .3f}")
 

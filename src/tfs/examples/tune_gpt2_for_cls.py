@@ -9,6 +9,7 @@ import sys
 import torch
 import logging
 from tqdm import tqdm
+
 PAD_VALUE = 0
 
 logger = logging.getLogger(__file__)
@@ -28,13 +29,14 @@ If there is a `test_file` provided in the args, we will run an evaluation on our
 
 """
 
+
 def read_cls_dataset_gpt2(
-        file: str,
-        tokenizer,
-        pad_index=0,
-        get_data_fn: Optional[Callable] = None,
-        max_seq_len=1024,
-        label_list: Optional[List[str]] = None,
+    file: str,
+    tokenizer,
+    pad_index=0,
+    get_data_fn: Optional[Callable] = None,
+    max_seq_len=1024,
+    label_list: Optional[List[str]] = None,
 ) -> TensorDataset:
     def read_space_delim_line(line: str):
         toks = line.split()
@@ -67,6 +69,7 @@ def read_cls_dataset_gpt2(
     for label, idx in label2index.items():
         label_list[idx] = label
     return TensorDataset(x_tensor, y_tensor), label_list
+
 
 def valid_epoch(epoch, loss_function, model, valid_loader, device, phase="valid"):
     model.eval()
@@ -145,7 +148,9 @@ def main():
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
     parser.add_argument("--ckpt_base", type=str, default='ckpt-')
-    parser.add_argument("--pool_type", type=str, choices=["mean", "last"], help="token to use for pooling, defaults to mean pooling")
+    parser.add_argument(
+        "--pool_type", type=str, choices=["mean", "last"], help="token to use for pooling, defaults to mean pooling"
+    )
     parser.add_argument("--num_epochs", type=int, default=5)
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)"
@@ -154,9 +159,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
     tokenizer = ByteLevelBPETokenizer(args.vocab_file, args.merges_file)
     # TODO: read the pad_index in
-    train_set, labels = read_cls_dataset_gpt2(
-        args.train_file, tokenizer, pad_index=0, max_seq_len=args.max_seq_len
-    )
+    train_set, labels = read_cls_dataset_gpt2(args.train_file, tokenizer, pad_index=0, max_seq_len=args.max_seq_len)
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, collate_fn=trim_to_shortest_len
     )
@@ -175,7 +178,9 @@ def main():
     num_classes = len(labels)
     output_layer = torch.nn.Linear(args.hidden_size, num_classes)
     pool_id = tokenizer.token_to_id("<|endoftext|>") if args.pool_type == 'last' else None
-    model = GPT2Creator.pooled_enc_from_pretrained(args.model, output=output_layer, pool_id=pool_id, **vars(args)).to(args.device)
+    model = GPT2Creator.pooled_enc_from_pretrained(args.model, output=output_layer, pool_id=pool_id, **vars(args)).to(
+        args.device
+    )
     loss_function = torch.nn.CrossEntropyLoss().to(args.device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)

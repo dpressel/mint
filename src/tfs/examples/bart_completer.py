@@ -6,6 +6,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from tokenizers import Tokenizer
 from bart import BartCreator
+
 logger = logging.getLogger(__file__)
 DECODER_START_TOKEN = 2
 """An example program where you can provide your BART model with a priming sequence and have it complete
