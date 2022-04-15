@@ -1,20 +1,21 @@
-from tfs.bert import BertCreator
+from tfs.bart import BartCreator
 from tfs.train import Average
 from tfs.data import read_cls_dataset
-from tokenizers import BertWordPieceTokenizer
+from tokenizers import Tokenizer
 import argparse
 import sys
 import torch
 import logging
 from tqdm import tqdm
+import os
 
-PAD_VALUE = 0
+PAD_VALUE = 1
 
 logger = logging.getLogger(__file__)
 
-"""Fine-tune BERT as a classifier
+"""Fine-tune BART as a classifier
 
-This program fine-tunes a pre-trained BERT for an unstructured prediction (classification) task.
+This program fine-tunes a pre-trained BART for an unstructured prediction (classification) task.
 The input is assumed to be a 2-column file with the label first.  The delimiter between columns should
 be a space or tab.
 
@@ -80,7 +81,7 @@ def train_epoch(epoch, loss_function, model, optimizer, train_loader, device):
 
 
 def trim_to_shortest_len(batch):
-    max_len = max((example[0] != PAD_VALUE).sum() for example in batch)
+    max_len = max((example[0] != PAD_VALUE).sum() for example in batch) + 1
     y = torch.stack([example[1] for example in batch])
     x = torch.stack([example[0][:max_len] for example in batch])
     return x, y
@@ -98,11 +99,10 @@ def main():
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers")
     parser.add_argument("--num_train_workers", type=int, default=4, help="Number train workers")
     parser.add_argument("--num_valid_workers", type=int, default=1, help="Number train workers")
-    parser.add_argument("--max_seq_len", type=int, default=512, help="Max input length")
+    parser.add_argument("--max_seq_len", type=int, default=1024, help="Max input length")
     parser.add_argument("--batch_size", type=int, default=20, help="Batch Size")
-    parser.add_argument("--vocab_file", type=str, help="The WordPiece model file", required=True)
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
-    parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
+    parser.add_argument("--tok_file", type=str, required=True, help="Path to tokenizer.json file")
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
     parser.add_argument("--ckpt_base", type=str, default='ckpt-')
     parser.add_argument("--num_epochs", type=int, default=5)
@@ -111,9 +111,11 @@ def main():
     )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
-    tokenizer = BertWordPieceTokenizer(args.vocab_file, lowercase=args.lowercase)
+    if os.path.isdir(args.tok_file):
+        args.tok_file = os.path.join(args.tok_file, 'tokenizer.json')
+    tokenizer = Tokenizer.from_file(args.tok_file)
     # TODO: read the pad_index in
-    train_set, labels = read_cls_dataset(args.train_file, tokenizer, pad_index=0, max_seq_len=args.max_seq_len)
+    train_set, labels = read_cls_dataset(args.train_file, tokenizer, pad_index=1, max_seq_len=args.max_seq_len)
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, collate_fn=trim_to_shortest_len
     )
@@ -121,7 +123,7 @@ def main():
     valid_set, labels = read_cls_dataset(
         args.valid_file,
         tokenizer,
-        pad_index=0,
+        pad_index=1,
         max_seq_len=args.max_seq_len,
         label_list=labels,
     )
@@ -131,7 +133,7 @@ def main():
 
     num_classes = len(labels)
     output_layer = torch.nn.Linear(args.hidden_size, num_classes)
-    model = BertCreator.pooled_enc_from_pretrained(args.model, output=output_layer, **vars(args)).to(args.device)
+    model = BartCreator.pooled_from_pretrained(args.model, output=output_layer, **vars(args)).to(args.device)
     loss_function = torch.nn.CrossEntropyLoss().to(args.device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -157,7 +159,7 @@ def main():
     test_set, final_labels = read_cls_dataset(
         args.test_file,
         tokenizer,
-        pad_index=0,
+        pad_index=1,
         max_seq_len=args.max_seq_len,
         label_list=labels,
     )

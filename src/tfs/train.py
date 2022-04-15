@@ -33,7 +33,7 @@ class Average:
         return fmtstr.format(**self.__dict__)
 
 
-class SingleDeviceLMTrainer:
+class SingleDeviceTrainer:
     """Simple trainer that works on a single machine/device"""
 
     def __init__(
@@ -297,6 +297,14 @@ class SingleDeviceLMTrainer:
             return self._warmup(global_step)
         return self._decay(global_step - total_steps_lr1)
 
+    def _train_step(self, batch):
+        """Run a single step of training
+
+        :param x: The input
+        :param y: The output
+        :return: The loss as a float
+        """
+
     def train_some(self, data_iter, num_iters, save_iter, model_base):
         """Train for some number of steps with an iterator.  The iterator should have at least that many steps available
 
@@ -318,13 +326,10 @@ class SingleDeviceLMTrainer:
 
         progress = tqdm(range(num_iters), total=num_iters)
         for iters in progress:
-            (x, y) = next(data_iter)
-            x = x.to(device=self.device)
-            y = y.to(device=self.device)
-            logits = self.model(x)
-            loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
-            loss.backward()
-            avg_loss.update(loss.item())
+            batch = next(data_iter)
+
+            loss = self._train_step(batch)
+            avg_loss.update(loss)
             if (iters + 1) % save_iter == 0:
                 self._save_checkpoint(model_base)
 
@@ -332,9 +337,7 @@ class SingleDeviceLMTrainer:
             self.optimizer.step()
             self.global_step += 1
             if self.global_step == self.total_steps:
-                progress.set_description(
-                    f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
-                )
+                progress.set_description(f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
                 self._save_checkpoint(model_base)
                 break
             self.optimizer.zero_grad()
@@ -353,6 +356,12 @@ class SingleDeviceLMTrainer:
         metrics['train_ppl'] = train_token_ppl
         return metrics
 
+    def _eval_step(self, batch):
+        """Evaluate a step
+        :param batch:
+        :return: TODO: make this more flexible
+        """
+
     def eval_some(self, data_iter, num_iters):
         """Evaluate some data
 
@@ -367,12 +376,9 @@ class SingleDeviceLMTrainer:
         progress = tqdm(range(num_iters), total=num_iters)
         with torch.no_grad():
             for iters in progress:
-                (x, y) = next(data_iter)
-                x = x.to(device=self.device)
-                y = y.to(device=self.device)
-                logits = self.model(x)
-                loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
-                avg_loss.update(loss.item())
+                batch = next(data_iter)
+                loss = self._eval_step(batch)
+                avg_loss.update(loss)
                 progress.set_description(f"validation steps {iters}: loss {avg_loss}. lr {self.current_lr:e}")
         valid_token_loss = avg_loss.avg
         valid_token_ppl = math.exp(valid_token_loss)
@@ -390,6 +396,70 @@ class SingleDeviceLMTrainer:
         checkpoint_name = self._checkpoint_for(model_base)
         logging.debug('Saving checkpoint [%s]', checkpoint_name)
         torch.save(self.model.state_dict(), checkpoint_name + '.pth')
+
+
+class SingleDeviceLMTrainer(SingleDeviceTrainer):
+    """Train an LM on a single device
+
+    For an MLM, the Y will be a denoised X, and for a left-to-right LM, the Y will be a lagged (by one) version of X
+    """
+    def _train_step(self, batch):
+        """Run a single step of training
+
+        :param x: The input
+        :param y: The output
+        :return: The loss as a float
+        """
+        (x, y) = batch
+        x = x.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x)
+        loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+        loss.backward()
+        return loss.item()
+
+    def _eval_step(self, batch):
+        (x, y) = batch
+        x = x.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x)
+        loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+        return loss.item()
+
+
+class SingleDeviceSeq2SeqTrainer(SingleDeviceTrainer):
+    """Single device seq2seq (encoder/decoder) trainer
+
+    Supports any teacher-forced seq2seq where the X value goes to the encoder and the Y value will be
+    dynamically lagged (by one), meaning that the first token up to the 2nd-to-last will be fed to the
+    decoder, and the 2nd token up to the last token will be compared as Y truth labels
+
+    """
+    def _train_step(self, batch):
+        """Run a single step of training
+
+        :param x: The input
+        :param y: The output
+        :return: The loss as a float
+        """
+        (x, y) = batch
+        x = x.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x, y[:, :-1])
+        y = y[:, 1:].contiguous()
+        loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+        loss.backward()
+        return loss.item()
+
+    def _eval_step(self, batch):
+        (x, y) = batch
+
+        x = x.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x, y[:, :-1])
+        y = y[:, 1:].contiguous()
+        loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+        return loss.item()
 
 
 def init_distributed(local_rank):
@@ -420,7 +490,7 @@ def get_num_gpus_multiworker() -> int:
     return int(os.environ.get("WORLD_SIZE", 1))
 
 
-class DistributedLMTrainer:
+class DistributedTrainer:
     """Trainer that works on multiple GPUs or machines with distributed data parallel
 
     This trainer assumes pure data parallelism -- each model is on a single gpu
@@ -628,6 +698,14 @@ class DistributedLMTrainer:
             return self._warmup(global_step)
         return self._decay(global_step - total_steps_lr1)
 
+    def _train_step(self, batch):
+        """Run a single step of training
+
+        :param x: The input
+        :param y: The output
+        :return: The loss as a float
+        """
+
     def train_some(self, data_iter, num_iters, save_iter, model_base, update_iter=None):
         """Train for some number of steps with an iterator.  The iterator should have at least that many steps available
 
@@ -653,13 +731,9 @@ class DistributedLMTrainer:
         for iters in range(num_iters):
 
             self.optimizer.zero_grad()
-            (x, y) = next(data_iter)
-            x = x.to(device=self.device)
-            y = y.to(device=self.device)
-            logits = self.model(x)
-            loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
-            loss.backward()
-            avg_loss.update(loss.item())
+            batch = next(data_iter)
+            loss = self._train_step(batch)
+            avg_loss.update(loss)
 
             if (iters + 1) % update_iter == 0:
                 logger.info(
@@ -693,6 +767,12 @@ class DistributedLMTrainer:
         metrics['train_ppl'] = train_token_ppl
         return metrics
 
+    def _eval_step(self, batch):
+        """Evaluate a step
+        :param batch:
+        :return: TODO: make this more flexible
+        """
+
     def eval_some(self, data_iter, num_iters):
         """Evaluate some data
 
@@ -706,12 +786,9 @@ class DistributedLMTrainer:
         metrics = {}
         with torch.no_grad():
             for iters in range(num_iters):
-                (x, y) = next(data_iter)
-                x = x.to(device=self.device)
-                y = y.to(device=self.device)
-                logits = self.model(x)
-                loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
-                avg_loss.update(loss.item())
+                batch = next(data_iter)
+                loss = self._eval_step(batch)
+                avg_loss.update(loss)
         valid_token_loss = avg_loss.avg
         valid_token_ppl = math.exp(valid_token_loss)
 
@@ -730,6 +807,63 @@ class DistributedLMTrainer:
         model_ = self.model.module if hasattr(self.model, 'module') else self.model
         torch.save(model_.state_dict(), checkpoint_name + '.pth')
 
+
+class DistributedLMTrainer(DistributedTrainer):
+    """Train an LM using distributed data parallel strategy
+
+    For an MLM, the Y will be a denoised X, and for a left-to-right LM, the Y will be a lagged (by one) version of X
+    """
+    def _train_step(self, batch):
+        (x, y) = batch
+        x = x.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x)
+        loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+        loss.backward()
+        return loss.item()
+
+    def _eval_step(self, batch):
+        (x, y) = batch
+        x = x.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x)
+        loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+        return loss.item()
+
+
+class DistributedSeq2SeqTrainer(DistributedTrainer):
+    """Distributed data parallel (multi-device) seq2seq (encoder/decoder) trainer
+
+    Supports any teacher-forced seq2seq where the X value goes to the encoder and the Y value will be
+    dynamically lagged (by one), meaning that the first token up to the 2nd-to-last will be fed to the
+    decoder, and the 2nd token up to the last token will be compared as Y truth labels
+
+    """
+    def _train_step(self, batch):
+        """Run a single step of training
+
+        :param x: The input
+        :param y: The output
+        :return: The loss as a float
+        """
+        (x, y) = batch
+        x = x.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x, y[:, :-1])
+        y = y[:, 1:].contiguous()
+        loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+        loss.backward()
+        return loss.item()
+
+    def _eval_step(self, batch):
+        (x, y) = batch
+
+        x = x.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x, y[:, :-1])
+        y = y[:, 1:].contiguous()
+        loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
+        return loss.item()
 
 if __name__ == '__main__':
     pass

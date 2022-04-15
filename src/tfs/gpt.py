@@ -18,7 +18,9 @@ class GPTLearnedPositionalEmbedding(nn.Module):
     Each of these embeddings are added together in the forward
     """
 
-    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512, dropout: float = 0.1):
+    def __init__(
+        self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512, dropout: float = 0.1
+    ):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
         self.position_embeddings = nn.Embedding(max_seq_len, hidden_dim)
@@ -112,7 +114,6 @@ class GPTTransformerLM(TransformerEncoder):
 
         self.output_layer = WeightTiedVocabProjection(self.embeddings.word_embeddings)
         self.apply(self.init_layer_weights)
-
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=0)
@@ -219,20 +220,20 @@ class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
     """
 
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            output: Optional[nn.Module] = None,
-            max_seq_len: int = 1024,
-            pool_id: Optional[int] = None,
-            **kwargs,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        output: Optional[nn.Module] = None,
+        max_seq_len: int = 1024,
+        pool_id: Optional[int] = None,
+        **kwargs,
     ):
         """Set up initialization for a (post-layer-norm) Transformer with pooling output.  Defaults to bert-base settings
 
@@ -278,14 +279,14 @@ class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
                     dtype=torch.uint8,
                 )
             )
-                .unsqueeze(0)
-                .unsqueeze(0),
-                )
+            .unsqueeze(0)
+            .unsqueeze(0),
+        )
 
         self.apply(self.init_layer_weights)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
 
@@ -309,10 +310,10 @@ class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
         return embeddings[inputs == self.pool_id]
 
     def mean_pool(self, inputs, embeddings):
-        mask = (inputs != 0)
+        mask = inputs != 0
         seq_lengths = mask.sum(1).float()
-        embeddings = embeddings.masked_fill(mask.unsqueeze(-1) == False, 0.)
-        return embeddings.sum(1)/seq_lengths.unsqueeze(-1)
+        embeddings = embeddings.masked_fill(mask.unsqueeze(-1) == False, 0.0)
+        return embeddings.sum(1) / seq_lengths.unsqueeze(-1)
 
 
 class GPTCreator:
@@ -370,9 +371,7 @@ class GPTCreator:
                 tlm_field_names.remove(f'{new_field_name}.output.bias')
                 unused_checkpoint_fields.remove(field_name)
             elif 'attn.bias' in field_name:
-                assert (
-                    (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask).all().item()
-                )
+                assert (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask).all().item()
                 unused_checkpoint_fields.remove(field_name)
 
             if new_field_name in tlm_field_names:
