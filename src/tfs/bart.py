@@ -228,7 +228,10 @@ class BartCreator:
 
     @classmethod
     def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
-        embeddings_weight = hf_dict[[k for k in hf_dict if 'encoder.embed_tokens.weight' in k][0]]
+        try:
+            embeddings_weight = hf_dict[[k for k in hf_dict if 'encoder.embed_tokens.weight' in k][0]]
+        except:
+            embeddings_weight = hf_dict[[k for k in hf_dict if 'encoder_embeddings.word_embeddings.weight' in k][0]]
         return embeddings_weight.shape
 
     @classmethod
