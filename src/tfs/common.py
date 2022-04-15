@@ -623,7 +623,6 @@ class TransformerEncoderDecoder(nn.Module):
             vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
         )
 
-        # TODO: is this general enough, or push down to BART impl?
         self.decoder_embeddings.word_embeddings = self.encoder_embeddings.word_embeddings
 
         self.encoder = nn.ModuleList(
@@ -721,7 +720,7 @@ class TransformerEncoderDecoder(nn.Module):
             module.bias.data.zero_()
 
 
-class TransformerEncoderDecoderLM(TransformerEncoderDecoder):
+class TransformerSequenceGenerator(TransformerEncoderDecoder):
     def __init__(
         self,
         EmbeddingClass: Callable,

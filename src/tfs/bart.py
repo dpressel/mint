@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.common import TransformerEncoderDecoder, TransformerEncoderDecoderLM
+from tfs.common import TransformerEncoderDecoder, TransformerSequenceGenerator
 import logging
 import random
 
@@ -143,7 +143,7 @@ class BartPooledEncoderDecoder(TransformerEncoderDecoder):
         return y
 
 
-class BartSequenceGenerator(TransformerEncoderDecoderLM):
+class BartSequenceGenerator(TransformerSequenceGenerator):
     def __init__(
         self,
         vocab_size: int,
