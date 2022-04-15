@@ -62,7 +62,7 @@ class BartEncoderDecoder(TransformerEncoderDecoder):
     def __init__(
         self,
         vocab_size: int,
-        padding_idx: int = 0,
+        padding_idx: int = 1,
         hidden_size: int = 768,
         num_heads: int = 12,
         num_encoder_layers: int = 6,
@@ -95,7 +95,7 @@ class BartPooledEncoderDecoder(TransformerEncoderDecoder):
     def __init__(
         self,
         vocab_size: int,
-        padding_idx: int = 0,
+        padding_idx: int = 1,
         hidden_size: int = 768,
         num_heads: int = 12,
         num_encoder_layers: int = 6,
@@ -147,7 +147,7 @@ class BartSequenceGenerator(TransformerSequenceGenerator):
     def __init__(
         self,
         vocab_size: int,
-        padding_idx: int = 0,
+        padding_idx: int = 1,
         hidden_size: int = 768,
         num_heads: int = 12,
         num_encoder_layers: int = 6,
