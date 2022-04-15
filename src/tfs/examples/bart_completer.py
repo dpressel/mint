@@ -63,7 +63,7 @@ def main():
         print(complete(args.query, args.sample, args.temperature))
         return
 
-    prompt_name = f'GPT{args.version}>> '
+    prompt_name = f'BART>> '
     history = FileHistory(args.history_file)
     while True:
         query = prompt(prompt_name, history=history)
