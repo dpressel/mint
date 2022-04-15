@@ -427,7 +427,7 @@ class SingleDeviceLMTrainer(SingleDeviceTrainer):
         return loss.item()
 
 
-class SingleDeviceSeq2SeqTrainer(SingleDeviceLMTrainer):
+class SingleDeviceSeq2SeqTrainer(SingleDeviceTrainer):
     """Single device seq2seq (encoder/decoder) trainer
 
     Supports any teacher-forced seq2seq where the X value goes to the encoder and the Y value will be
