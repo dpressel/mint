@@ -306,8 +306,6 @@ def token_mask(inputs, labels, vocab):
     """
     pad_value = vocab.get('<pad>')
     mask_value = vocab.get('<mask>')
-    # Bart's tokenizer doesnt actually split sentences, but it does produce atomic tokens for end punc,
-    # so this is a very coarse approximation
     vocab_size = len(vocab)
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
     # make sure if the input is padded we dont mask

@@ -56,7 +56,7 @@ def main():
                     response = response.argmax(-1).item()
 
                 outputs.append(response)
-            outputs = tokenizer.decode(outputs)
+            outputs = tokenizer.decode(outputs[2:])
             return outputs
 
     if args.query:
