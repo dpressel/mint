@@ -75,7 +75,7 @@ def try_get_global_step(checkpoint_name) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Pretrain BERT (simple)')
+    parser = argparse.ArgumentParser(description='Pretrain BERT (wiki)')
     parser.add_argument("--model_checkpoint_dir", type=str)
     parser.add_argument("--train_file", type=str, required=True, help='File path to use for train file')
     parser.add_argument("--valid_file", type=str, required=True, help='File path to use for valid file')
@@ -85,7 +85,7 @@ def main():
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers")
     parser.add_argument("--num_train_workers", type=int, default=4, help="Number train workers")
     parser.add_argument("--num_valid_workers", type=int, default=1, help="Number train workers")
-    parser.add_argument("--nctx", type=int, default=512, help="Max input length")
+    parser.add_argument("--seq_len", type=int, default=512, help="Max input length")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch Size")
     parser.add_argument("--vocab_file", type=str, help="The WordPiece model file", required=True)
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
@@ -149,8 +149,8 @@ def main():
     if args.plot_lr_plan:
         trainer.show_lr_plan(args.num_steps)
 
-    train_dataset = create_sharded_dataset(tokenizer, args.train_file, True)
-    valid_dataset = create_sharded_dataset(tokenizer, args.valid_file, False)
+    train_dataset = create_sharded_dataset(tokenizer, args.train_file, True, seq_len=args.seq_len)
+    valid_dataset = create_sharded_dataset(tokenizer, args.valid_file, False, seq_len=args.seq_len)
 
     trainer.train_steps(
         train_dataset,

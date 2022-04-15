@@ -3,7 +3,7 @@ import argparse
 import torch
 import numpy as np
 from torch.utils.data import Dataset, TensorDataset
-from tfs.bart import BartCreator, NoisingCollator, BartEncoderDecoderLM
+from tfs.bart import BartCreator, NoisingCollator, BartSequenceGenerator
 from tfs.train import SingleDeviceSeq2SeqTrainer
 from tokenizers import Tokenizer
 import os
@@ -103,7 +103,7 @@ def main():
         model = BartCreator.from_pretrained(args.restart_from, **vars(args))
     else:
         global_step = 0
-        model = BartEncoderDecoderLM(tokenizer.get_vocab_size(), **vars(args))
+        model = BartSequenceGenerator(tokenizer.get_vocab_size(), **vars(args))
     print(model)
     trainer = SingleDeviceSeq2SeqTrainer(
         model,

@@ -143,7 +143,7 @@ class BartPooledEncoderDecoder(TransformerEncoderDecoder):
         return y
 
 
-class BartEncoderDecoderLM(TransformerEncoderDecoderLM):
+class BartSequenceGenerator(TransformerEncoderDecoderLM):
     def __init__(
         self,
         vocab_size: int,
@@ -239,7 +239,7 @@ class BartCreator:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BartCreator.get_vocab_and_hidden_dims(hf_dict)
-        seq2seq = BartEncoderDecoderLM(vocab_size, **kwargs)
+        seq2seq = BartSequenceGenerator(vocab_size, **kwargs)
         missing, unused = BartCreator.convert_state_dict(seq2seq, hf_dict)
         logging.info(f'Unset params: {missing}')
         logging.info(f'Unused checkpoint fields: {unused}')
