@@ -3,7 +3,8 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.common import TransformerEncoderDecoder, TransformerSequenceGenerator
+from tfs.postln import TransformerEncoderDecoder, TransformerSequenceGenerator
+
 import logging
 import random
 

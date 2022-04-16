@@ -3,7 +3,9 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.common import PreLayerNormTransformerEncoder, TransformerEncoder, WeightTiedVocabProjection
+from tfs.common import WeightTiedVocabProjection
+from tfs.preln import PreLayerNormTransformerEncoder
+from tfs.postln import TransformerEncoder
 import logging
 
 logger = logging.getLogger('tfs')
