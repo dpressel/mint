@@ -59,21 +59,21 @@ class TransformerPooledEncoder(TransformerEncoder):
     """
 
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            output: Optional[nn.Module] = None,
-            max_seq_len: int = 512,
-            pool_type: str = 'cls',
-            use_mlp_layer: bool = True,
-            **kwargs,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        output: Optional[nn.Module] = None,
+        max_seq_len: int = 512,
+        pool_type: str = 'cls',
+        use_mlp_layer: bool = True,
+        **kwargs,
     ):
         """Set up initialization for a (post-layer-norm) Transformer with pooling output.  Defaults to bert-base settings
 
@@ -117,13 +117,13 @@ class TransformerPooledEncoder(TransformerEncoder):
         return embeddings[:, 0, :]
 
     def mean_pool(self, inputs, embeddings):
-        mask = (inputs != self.padding_idx)
+        mask = inputs != self.padding_idx
         seq_lengths = mask.sum(1).float()
-        embeddings = embeddings.masked_fill(mask.unsqueeze(-1) == False, 0.)
+        embeddings = embeddings.masked_fill(mask.unsqueeze(-1) == False, 0.0)
         return embeddings.sum(1) / seq_lengths.unsqueeze(-1)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
 
@@ -148,19 +148,19 @@ class TransformerProjectionEncoder(TransformerEncoder):
     """
 
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            output: Optional[nn.Module] = None,
-            max_seq_len: int = 512,
-            **kwargs,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        output: Optional[nn.Module] = None,
+        max_seq_len: int = 512,
+        **kwargs,
     ):
         """Set up initialization for a (post-layer-norm) Transformer with pooling output.  Defaults to bert-base settings
 
@@ -192,7 +192,7 @@ class TransformerProjectionEncoder(TransformerEncoder):
         self.apply(self.init_layer_weights)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
 
@@ -226,18 +226,18 @@ class TransformerMLM(TransformerEncoder):
     """
 
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 512,
-            **kwargs,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
+        **kwargs,
     ):
         super().__init__(
             BertLearnedPositionalEmbedding,
@@ -271,7 +271,7 @@ class TransformerMLM(TransformerEncoder):
         return nn.CrossEntropyLoss(ignore_index=0)
 
     def forward(
-            self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
@@ -286,34 +286,51 @@ class TransformerMLM(TransformerEncoder):
 
 
 class SentenceBert(TransformerPooledEncoder):
-
     def __init__(
-            self,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_layers: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            output: Optional[nn.Module] = None,
-            max_seq_len: int = 512,
-            pool_type: str = 'mean',
-            use_mlp_layer: bool = False,
-            **kwargs,
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        output: Optional[nn.Module] = None,
+        max_seq_len: int = 512,
+        pool_type: str = 'mean',
+        use_mlp_layer: bool = False,
+        **kwargs,
     ):
-        super().__init__(vocab_size, padding_idx, hidden_size, num_heads, num_layers, dropout, layer_norm_eps,
-                         activation, feed_forward_size, None, max_seq_len, pool_type, use_mlp_layer, **kwargs)
+        super().__init__(
+            vocab_size,
+            padding_idx,
+            hidden_size,
+            num_heads,
+            num_layers,
+            dropout,
+            layer_norm_eps,
+            activation,
+            feed_forward_size,
+            None,
+            max_seq_len,
+            pool_type,
+            use_mlp_layer,
+            **kwargs,
+        )
         if output is None:
             self.output_dual = nn.Linear(3 * self.hidden_size, 3)
         else:
             self.output_dual = output
 
     def forward(
-            self, x: torch.Tensor, y: torch.Tensor, mask_x: Optional[torch.Tensor] = None,
-            mask_y: Optional[torch.Tensor] = None) -> torch.Tensor:
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        mask_x: Optional[torch.Tensor] = None,
+        mask_y: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
         :param x: A one-hot (long) tensor of shape `[B, T]`
@@ -321,8 +338,8 @@ class SentenceBert(TransformerPooledEncoder):
         :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
         :return:
         """
-        x_enc = super().forward(x, mask_x)
-        y_enc = super().forward(y, mask_y)
+        x_enc = super().forward(x, mask_x, torch.zeros_like(x))
+        y_enc = super().forward(y, mask_y, torch.ones_like(x))
 
         sub_enc = torch.abs(x_enc - y_enc)
         encoded = torch.cat([x_enc, y_enc, sub_enc], -1)

@@ -403,6 +403,7 @@ class SingleDeviceLMTrainer(SingleDeviceTrainer):
 
     For an MLM, the Y will be a denoised X, and for a left-to-right LM, the Y will be a lagged (by one) version of X
     """
+
     def _train_step(self, batch):
         """Run a single step of training
 
@@ -435,6 +436,7 @@ class SingleDeviceSeq2SeqTrainer(SingleDeviceTrainer):
     decoder, and the 2nd token up to the last token will be compared as Y truth labels
 
     """
+
     def _train_step(self, batch):
         """Run a single step of training
 
@@ -813,6 +815,7 @@ class DistributedLMTrainer(DistributedTrainer):
 
     For an MLM, the Y will be a denoised X, and for a left-to-right LM, the Y will be a lagged (by one) version of X
     """
+
     def _train_step(self, batch):
         (x, y) = batch
         x = x.to(device=self.device)
@@ -839,6 +842,7 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
     decoder, and the 2nd token up to the last token will be compared as Y truth labels
 
     """
+
     def _train_step(self, batch):
         """Run a single step of training
 
@@ -864,6 +868,29 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         return loss.item()
+
+
+
+class SingleDeviceNLITrainer(SingleDeviceTrainer):
+
+    def _train_step(self, batch):
+        x1, x2, y = batch
+        x1 = x1.to(device=self.device)
+        x2 = x2.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x1, x2)
+        loss = self.loss_function(logits, y)
+        return loss.item()
+
+    def _eval_step(self, batch):
+        x1, x2, y = batch
+        x1 = x1.to(device=self.device)
+        x2 = x2.to(device=self.device)
+        y = y.to(device=self.device)
+        logits = self.model(x1, x2)
+        loss = self.loss_function(logits, y)
+        return loss.item()
+
 
 if __name__ == '__main__':
     pass
