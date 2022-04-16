@@ -16,7 +16,11 @@ class WeightTiedVocabProjection(nn.Module):
     input word embeddings.  The embeddings are passed in, and we use their weights for our forward function.
     """
 
-    def __init__(self, from_module):
+    def __init__(self, from_module: nn.Module):
+        """This uses another module (usually an `nn.Embedding`) to implement its forward function
+
+        :param from_module: Typically an `nn.Embedding` whose weights we use to implement our linear projection
+        """
         super().__init__()
         self.from_module = from_module
 
@@ -24,7 +28,12 @@ class WeightTiedVocabProjection(nn.Module):
     def weight(self):
         return self.from_module.weight
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Project a dense hidden vector to the vocab space
+
+        :param x: A dense hidden vector
+        :return: The vocab space output
+        """
         return nn.functional.linear(x, self.weight)
 
 
@@ -143,7 +152,7 @@ def create_feed_forward_layer(
 
     :param hidden_size: The transformer block size (d_model in the paper)
     :param feed_forward_size: The feed-forward layer size, or 4 * hidden_size.
-    :param activation: The activation function, defaults to GELU
+    :param activation: The activation function, defaults to `nn.GELU()`
     :return: An n.Sequential that wraps the whole FFN transformation block
     """
     d_ff = feed_forward_size if feed_forward_size else 4 * hidden_size
@@ -413,7 +422,7 @@ class PreLayerNormTransformerEncoder(nn.Module):
         feed_forward_size: Optional[int] = None,
         max_seq_len: int = 512,
     ):
-        """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
+        """Set up initialization for a (pre-layer-norm) Transformer.  Defaults to bert-base settings
 
         :param vocab_size: The size of the input vocabulary
         :param padding_idx: The padding index, defaults to 0
