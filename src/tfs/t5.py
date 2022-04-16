@@ -7,12 +7,62 @@ from typing import Optional
 from tfs.preln import PreLayerNormTransformerEncoderDecoder, PreLayerNormTransformerSequenceGenerator
 import logging
 import random
-
+import re
 logger = logging.getLogger('tfs')
 
 
+def _relative_position_bucket(relative_position, is_bidirectional, num_buckets, max_distance):
+    """Taken from https://github.com/tensorflow/mesh/blob/bbb6ce7917e2a8ef1f3dc6990fcacd4f3b075acd/mesh_tensorflow/transformer/transformer_layers.py#L1014
+    """
+    ret = 0
+    relative_buckets = 0
+    if is_bidirectional:
+        num_buckets //= 2
+        relative_buckets += (relative_position > 0).to(torch.long) * num_buckets
+        relative_position = torch.abs(relative_position)
+    else:
+        relative_position = -torch.min(relative_position, torch.zeros_like(relative_position))
 
-class MultiHeadedEncoderDecoderAttentionWithoutBias(nn.Module):
+    # now n is in the range [0, inf)
+    max_exact = num_buckets // 2
+    is_small = relative_position < max_exact
+    relative_postion_if_large = max_exact + (
+            torch.log(relative_position.float() / max_exact)
+            / math.log(max_distance / max_exact)
+            * (num_buckets - max_exact)
+    ).to(torch.long)
+    relative_postion_if_large = torch.min(
+        relative_postion_if_large, torch.full_like(relative_postion_if_large, num_buckets - 1)
+    )
+
+    relative_buckets += torch.where(is_small, relative_position, relative_postion_if_large)
+    return relative_buckets
+
+
+class SharedRelativeAttentionBias(nn.Module):
+    def __init__(self, num_heads, is_bidirectional):
+        super().__init__()
+        self.num_heads = num_heads
+        self.num_buckets = 32
+        self.max_distance = 128
+        self.is_bidirectional = is_bidirectional
+        rel_embedding = torch.nn.init.kaiming_normal_(torch.empty((self.num_heads, self.num_buckets),
+                                                                  dtype=torch.float), nonlinearity='linear')
+
+        self.relative_attention_bias = nn.Parameter(rel_embedding, requires_grad=True)
+
+    def forward(self, T_k, T_q):
+
+        memory_position = torch.arange(T_k).view(1, -1)
+        query_position = torch.arange(T_q).view(-1, 1)
+        relative_position = memory_position - query_position
+
+        rp_bucket = _relative_position_bucket(relative_position, self.is_bidirectional, self.num_buckets, self.max_distance)
+        relative_attention_bias = self.relative_attention_bias[:, rp_bucket]
+        return relative_attention_bias
+
+
+class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
     """Multi-headed encoder-decoder attention implementation using scaled dot product
 
     Converts the input tensors to 3 low-order projections, query, key and value and performs
@@ -21,7 +71,7 @@ class MultiHeadedEncoderDecoderAttentionWithoutBias(nn.Module):
 
     """
 
-    def __init__(self, hidden_size: int, num_heads: int):
+    def __init__(self, hidden_size: int, num_heads: int, relative_attention_bias: SharedRelativeAttentionBias):
         """Each block has the same hidden unit size (`d_model` in the paper).  Must be a multiple of num heads
 
         :param hidden_size: The number of units (both input and output) of the MHA block
@@ -37,6 +87,8 @@ class MultiHeadedEncoderDecoderAttentionWithoutBias(nn.Module):
         self.num_heads = num_heads
         self.d_k = d_k
         self.scale = 1 / math.sqrt(d_k)
+        self.relative_attention_bias = relative_attention_bias
+
 
     def forward(self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
@@ -58,6 +110,14 @@ class MultiHeadedEncoderDecoderAttentionWithoutBias(nn.Module):
         if mask is not None:
             dot_prod = dot_prod.masked_fill(mask == False, -1e9)
 
+        #memory_position = torch.arange(T_k).view(1, -1)
+        #query_position = torch.arange(T_q).view(-1, 1)
+        #relative_position = memory_position - query_position
+
+        #rp_bucket = _relative_position_bucket(relative_position, self.is_bidirectional, self.num_buckets, self.max_distance)
+        #relative_attention_bias = self.relative_attention_bias[:, rp_bucket]
+        dot_prod += self.relative_attention_bias(T_k, T_q)
+
         attn = nn.functional.softmax(dot_prod, dim=-1)
         pre_output = attn @ value_vec
 
@@ -66,8 +126,8 @@ class MultiHeadedEncoderDecoderAttentionWithoutBias(nn.Module):
         return output
 
 
-class MultiHeadedRelativeAttentionBias:
-    def __init__(self, hidden_size: int, num_heads: int, is_bidirectional: bool = True, num_buckets: int = 32, max_distance: int = 128):
+class MultiHeadedRelativeAttentionBias(nn.Module):
+    def __init__(self, hidden_size: int, num_heads: int, relative_attention_bias: SharedRelativeAttentionBias): #num_buckets: int = 32, max_distance: int = 128):
         """Each block has the same hidden unit size (`d_model` in the paper).  Must be a multiple of num heads
 
         :param hidden_size: The number of units (both input and output) of the MHA block
@@ -85,36 +145,16 @@ class MultiHeadedRelativeAttentionBias:
         self.num_heads = num_heads
         self.d_k = d_k
         self.scale = 1 / math.sqrt(d_k)
-        self.is_bidirectional = is_bidirectional
-        self.num_buckets = num_buckets
-        self.max_distance = max_distance
+        #self.num_buckets = num_buckets
+        #self.max_distance = max_distance
+        self.relative_attention_bias = relative_attention_bias
+        #rel_embedding = torch.nn.init.kaiming_normal_(torch.empty((self.num_heads, self.num_buckets),
+        #                                                          dtype=torch.float), nonlinearity='linear')
+        #self.relative_attention_bias = nn.Parameter(rel_embedding, requires_grad=True)
 
-        rel_embedding = torch.nn.init.kaiming_normal_(torch.empty((self.num_heads, self.num_buckets),
-                                                                  dtype=torch.float), nonlinearity='linear')
-        self.rel_embedding = nn.Parameter(rel_embedding, requires_grad=True)
 
-    def _relative_position_bucket(self, relative_position):
-        """Taken from https://github.com/tensorflow/mesh/blob/bbb6ce7917e2a8ef1f3dc6990fcacd4f3b075acd/mesh_tensorflow/transformer/transformer_layers.py#L1014
-        """
-        ret = 0
-        n = -relative_position
-        num_buckets = self.num_buckets
-        if self.is_bidirectional:
-            num_buckets //= 2
-            ret += torch.lt(n, 0).to(dtype=torch.long) * num_buckets
-            n = torch.abs(n).to(dtype=torch.long)
-        else:
-            n = torch.maximum(n, 0).to(dtype=torch.long)
-
-        # now n is in the range [0, inf)
-        max_exact = num_buckets // 2
-        is_small = torch.lt(n, max_exact)
-        val_if_large = max_exact + (
-                torch.log(n.to(dtype=torch.float32) / max_exact)
-                / math.log(self.max_distance / max_exact) * (num_buckets - max_exact)).to(dtype=torch.long)
-        val_if_large = torch.minimum(val_if_large, torch.tensor(num_buckets - 1))
-        ret += torch.where(is_small, n, val_if_large)
-        return ret
+    #def is_bidirectional(self):
+    #    return True
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
@@ -128,16 +168,16 @@ class MultiHeadedRelativeAttentionBias:
         key_vec = self.key(x).view(B, T, self.num_heads, -1).transpose(1, 2)
         value_vec = self.value(x).view(B, T, self.num_heads, -1).transpose(1, 2)
 
-        memory_position = torch.arange(T).view(1, -1)
-        query_position = torch.arange(T).view(-1, 1)
-        relative_position = memory_position - query_position
+        #memory_position = torch.arange(T).view(1, -1)
+        #query_position = torch.arange(T).view(-1, 1)
+        #relative_position = memory_position - query_position
 
         # [B, H, T_q, D] x [B, H, D, T_k] = [B, H, T_q, T_k]
         dot_prod = (query_vec @ key_vec.transpose(-1, -2)) * self.scale
 
-        rp_bucket = self._relative_position_bucket(relative_position)
-        relative_attention_bias = self.rel_embedding[:, rp_bucket]
-        dot_prod += relative_attention_bias
+        #rp_bucket = _relative_position_bucket(relative_position, self.is_bidirectional, self.num_buckets, self.max_distance)
+        #relative_attention_bias = self.relative_attention_bias[:, rp_bucket]
+        dot_prod += self.relative_attention_bias(T, T)
 
         if mask is not None:
             dot_prod = dot_prod.masked_fill(mask == False, -1e9)
@@ -149,6 +189,30 @@ class MultiHeadedRelativeAttentionBias:
         output = self.output(pre_output.view(B, T, -1))
         return output
 
+
+def create_feed_forward_layer_no_bias(
+        hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.GELU()
+):
+    """Create a feed-forward layer (called FFN in the paper)
+
+    This uses nn.Sequential to string together each part (the MLP and down-projection back to the output size)
+
+    :param hidden_size: The transformer block size (d_model in the paper)
+    :param feed_forward_size: The feed-forward layer size, or 4 * hidden_size.
+    :param activation: The activation function, defaults to GELU
+    :return: An n.Sequential that wraps the whole FFN transformation block
+    """
+    d_ff = feed_forward_size if feed_forward_size else 4 * hidden_size
+    return nn.Sequential(nn.Linear(hidden_size, d_ff, bias=False), activation, nn.Linear(d_ff, hidden_size, bias=False))
+
+
+class DecoderMultiHeadedRelativeAttentionBias(MultiHeadedRelativeAttentionBias):
+
+    def __init__(self, hidden_size: int, num_heads: int, num_buckets: int = 32, max_distance: int = 128):
+        super().__init__(hidden_size, num_heads, num_buckets, max_distance)
+
+    def is_bidirectional(self):
+        return True
 
 class LayerNormWithoutAdditiveBias(nn.Module):
     """T5 uses a layer norm with no additive bias
@@ -218,6 +282,9 @@ class T5EncoderDecoder(PreLayerNormTransformerEncoderDecoder):
         feed_forward_size: Optional[int] = None,
         max_seq_len: int = 512,
     ):
+        enc_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, True)
+        dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
+        enc_dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, True)
         super().__init__(
             WordOnlyEmbedding,
             vocab_size,
@@ -231,11 +298,15 @@ class T5EncoderDecoder(PreLayerNormTransformerEncoderDecoder):
             activation,
             feed_forward_size,
             max_seq_len,
-            MultiHeadedEncoderDecoderAttentionWithoutBias,
-            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, True),
-            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, False),
+            lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(x, y, enc_dec_shared_relative_attention_bias),
+            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, enc_shared_relative_attention_bias),
+            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, dec_shared_relative_attention_bias),
             LayerNormWithoutAdditiveBias,
+            create_feed_forward_layer_no_bias,
         )
+        self.enc_shared_relative_attention_bias = enc_shared_relative_attention_bias
+        self.dec_shared_relative_attention_bias = dec_shared_relative_attention_bias
+        self.enc_dec_shared_relative_attention_bias = enc_dec_shared_relative_attention_bias
 
 
 class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
@@ -254,6 +325,9 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
         max_seq_len: int = 512,
         **kwargs,
     ):
+        enc_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, True)
+        dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
+        enc_dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, True)
         super().__init__(
             WordOnlyEmbedding,
             vocab_size,
@@ -267,8 +341,109 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
             activation,
             feed_forward_size,
             max_seq_len,
+            lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(x, y, enc_dec_shared_relative_attention_bias),
+            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, enc_shared_relative_attention_bias),
+            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, dec_shared_relative_attention_bias),
+            LayerNormWithoutAdditiveBias,
+            create_feed_forward_layer_no_bias,
         )
+        self.enc_shared_relative_attention_bias = enc_shared_relative_attention_bias
+        self.dec_shared_relative_attention_bias = dec_shared_relative_attention_bias
+        self.enc_dec_shared_relative_attention_bias = enc_dec_shared_relative_attention_bias
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=1)
+
+
+
+class T5Creator:
+    @classmethod
+    def convert_state_dict(cls, tlm, bert_state_dict):
+        """Convert the state dict to TFS compatible names
+
+        The encoder token embeddings (AKA word_embeddings) are shared with the decoder token embeddings, and
+        in the HF implementation, this is done via `self.shared` so all 3 items are in the original checkpoint,
+        and we only need one of them.  We have tied these together by assignment already, so loading the encoder's
+        word embeddings updates the decoder word embeddings too
+
+        Note that the positional embeddings are different for encoder and decoder, so these are not shared and both
+        are loaded
+
+        :param tlm:
+        :param bert_state_dict:
+        :return:
+        """
+        tlm_field_names = set(k for k in tlm.state_dict().keys())
+        hf_field_names = bert_state_dict.keys()
+
+        unused_checkpoint_fields = set(hf_field_names)
+        remap = {}
+
+        # OOPS?
+        # decoder.block.{n}.layer.1.EncDecAttention.relative_attention_bias.weight -> decoder[n].encoder_attention.rel_embedding.weight
+
+        for field_name in hf_field_names:
+            if 'relative_attention_bias.weight' in field_name:
+                bert_state_dict[field_name] = bert_state_dict[field_name].T
+
+            new_field_name = field_name.replace('shared.weight', 'encoder_embeddings.word_embeddings.weight')
+            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.k.weight', r'\1coder.\2.self_attention.key.weight', new_field_name)
+            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.q.weight', r'\1coder.\2.self_attention.query.weight', new_field_name)
+            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.v.weight', r'\1coder.\2.self_attention.value.weight', new_field_name)
+            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.o.weight', r'\1coder.\2.self_attention.output.weight', new_field_name)
+            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.layer_norm.weight', r'\1coder.\2.self_attention_layer_norm.weight', new_field_name)
+            # For encoder block, FFN is 1
+            new_field_name = re.sub(r'encoder.block.(\d+).layer.1.DenseReluDense.wi.weight', r'encoder.\1.ffn.0.weight', new_field_name)
+            new_field_name = re.sub(r'encoder.block.(\d+).layer.1.DenseReluDense.wo.weight', r'encoder.\1.ffn.2.weight', new_field_name)
+            new_field_name = re.sub(r'encoder.block.(\d+).layer.1.layer_norm.weight', r'encoder.\1.output_layer_norm.weight', new_field_name)
+            # For decoder block, FFN is 2
+            new_field_name = re.sub(r'decoder.block.(\d+).layer.2.DenseReluDense.wi.weight', r'decoder.\1.ffn.0.weight', new_field_name)
+            new_field_name = re.sub(r'decoder.block.(\d+).layer.2.DenseReluDense.wo.weight', r'decoder.\1.ffn.2.weight', new_field_name)
+            new_field_name = re.sub(r'decoder.block.(\d+).layer.2.layer_norm.weight', r'decoder.\1.output_layer_norm.weight', new_field_name)
+
+            # For decoder block, encoder-decoder attention is 1:
+            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.EncDecAttention.k.weight', r'decoder.\1.encoder_attention.key.weight', new_field_name)
+            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.EncDecAttention.q.weight', r'decoder.\1.encoder_attention.query.weight', new_field_name)
+            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.EncDecAttention.v.weight', r'decoder.\1.encoder_attention.value.weight', new_field_name)
+            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.EncDecAttention.o.weight', r'decoder.\1.encoder_attention.output.weight', new_field_name)
+            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.layer_norm.weight', r'decoder.\1.encoder_attention_layer_norm.weight', new_field_name)
+            new_field_name = new_field_name.replace('encoder.final_layer_norm', 'encoder_layer_norm')
+            new_field_name = new_field_name.replace('decoder.final_layer_norm', 'decoder_layer_norm')
+
+            new_field_name = new_field_name.replace('encoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight', 'enc_shared_relative_attention_bias.relative_attention_bias')
+            new_field_name = new_field_name.replace('decoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight', 'dec_shared_relative_attention_bias.relative_attention_bias')
+            new_field_name = new_field_name.replace('decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight', 'enc_dec_shared_relative_attention_bias.relative_attention_bias')
+
+
+
+            if new_field_name in tlm_field_names:
+                tlm_field_names.remove(new_field_name)
+                unused_checkpoint_fields.remove(field_name)
+                remap[new_field_name] = bert_state_dict[field_name]
+        print('MISSING', tlm_field_names)
+        print('UNUSED', unused_checkpoint_fields)
+        tlm.load_state_dict(remap, strict=False)
+        return tlm_field_names, unused_checkpoint_fields
+
+    @classmethod
+    def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
+        try:
+            embeddings_weight = hf_dict[[k for k in hf_dict if 'shared.weight' in k][0]]
+        except:
+            embeddings_weight = hf_dict[[k for k in hf_dict if 'encoder_embeddings.word_embeddings.weight' in k][0]]
+        return embeddings_weight.shape
+
+    @classmethod
+    def from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+        if os.path.isdir(checkpoint_file_or_dir):
+            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+        else:
+            checkpoint = checkpoint_file_or_dir
+        hf_dict = torch.load(checkpoint, map_location=map_location)
+        vocab_size, hidden_size = T5Creator.get_vocab_and_hidden_dims(hf_dict)
+        seq2seq = T5SequenceGenerator(vocab_size, hidden_size=hidden_size, **kwargs)
+        missing, unused = T5Creator.convert_state_dict(seq2seq, hf_dict)
+        logging.info(f'Unset params: {missing}')
+        logging.info(f'Unused checkpoint fields: {unused}')
+        return seq2seq
 

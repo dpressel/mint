@@ -33,7 +33,8 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
         MultiHeadedAttentionImpl = MultiHeadedAttention,
-        LayerNormImpl = nn.LayerNorm
+        LayerNormImpl = nn.LayerNorm,
+        FFNCreator = create_feed_forward_layer,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -51,7 +52,7 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         self.d_ff = feed_forward_size
         self.self_attention = MultiHeadedAttentionImpl(hidden_size, num_heads)
         self.self_attention_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
-        self.ffn = create_feed_forward_layer(hidden_size, feed_forward_size, activation)
+        self.ffn = FFNCreator(hidden_size, feed_forward_size, activation)
         self.output_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
 
     def maybe_dropout(self, x: torch.Tensor) -> torch.Tensor:
@@ -109,7 +110,8 @@ class PreLayerNormTransformerEncoder(nn.Module):
         feed_forward_size: Optional[int] = None,
         max_seq_len: int = 512,
         MultiHeadedAttentionImpl = MultiHeadedAttention,
-        LayerNormImpl = nn.LayerNorm
+        LayerNormImpl = nn.LayerNorm,
+        FFNCreator = create_feed_forward_layer,
     ):
         """Set up initialization for a (pre-layer-norm) Transformer
 
@@ -129,7 +131,7 @@ class PreLayerNormTransformerEncoder(nn.Module):
         self.encoder = nn.ModuleList(
             [
                 PreLayerNormTransformerEncoderLayer(
-                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, MultiHeadedAttentionImpl, LayerNormImpl,
+                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, MultiHeadedAttentionImpl, LayerNormImpl, FFNCreator,
                 )
                 for _ in range(num_layers)
             ]
@@ -216,7 +218,8 @@ class PreLayerNormTransformerDecoderLayer(nn.Module):
             feed_forward_size: Optional[int] = None,
             MultiHeadedEncoderDecoderAttentionImpl = MultiHeadedEncoderDecoderAttention,
             MultiHeadedAttentionImpl = MultiHeadedAttention,
-            LayerNormImpl = nn.LayerNorm
+            LayerNormImpl = nn.LayerNorm,
+            FFNCreator = create_feed_forward_layer,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -236,7 +239,7 @@ class PreLayerNormTransformerDecoderLayer(nn.Module):
         self.self_attention_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
         self.encoder_attention = MultiHeadedEncoderDecoderAttentionImpl(hidden_size, num_heads)
         self.encoder_attention_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
-        self.ffn = create_feed_forward_layer(hidden_size, feed_forward_size, activation)
+        self.ffn = FFNCreator(hidden_size, feed_forward_size, activation)
         self.output_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
 
     def maybe_dropout(self, x: torch.Tensor) -> torch.Tensor:
@@ -300,11 +303,11 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
             activation: nn.Module = nn.GELU(),
             feed_forward_size: Optional[int] = None,
             max_seq_len: int = 512,
-            do_embeddings_layer_norm=True,
             MultiHeadedEncoderDecoderAttentionImpl = MultiHeadedEncoderDecoderAttention,
             EncoderMultiHeadedAttentionImpl = MultiHeadedAttention,
             DecoderMultiHeadedAttentionImpl = MultiHeadedAttention,
-            LayerNormImpl = nn.LayerNorm
+            LayerNormImpl = nn.LayerNorm,
+            FFNCreator = create_feed_forward_layer,
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -320,12 +323,7 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
         """
         super().__init__()
         self.padding_idx = padding_idx
-        self.encoder_embeddings_layer_norm = (
-            LayerNormImpl(hidden_size, layer_norm_eps) if do_embeddings_layer_norm else nn.Identity()
-        )
-        self.decoder_embeddings_layer_norm = (
-            LayerNormImpl(hidden_size, layer_norm_eps) if do_embeddings_layer_norm else nn.Identity()
-        )
+
         self.encoder_embeddings = EmbeddingClass(
             vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
         )
@@ -337,13 +335,13 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
 
         self.encoder = nn.ModuleList(
             [
-                PreLayerNormTransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, EncoderMultiHeadedAttentionImpl, LayerNormImpl)
+                PreLayerNormTransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, EncoderMultiHeadedAttentionImpl, LayerNormImpl, FFNCreator)
                 for _ in range(num_encoder_layers)
             ]
         )
         self.decoder = nn.ModuleList(
             [
-                PreLayerNormTransformerDecoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, MultiHeadedEncoderDecoderAttentionImpl, DecoderMultiHeadedAttentionImpl, LayerNormImpl)
+                PreLayerNormTransformerDecoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, MultiHeadedEncoderDecoderAttentionImpl, DecoderMultiHeadedAttentionImpl, LayerNormImpl, FFNCreator)
                 for _ in range(num_decoder_layers)
             ]
         )
@@ -362,6 +360,8 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
                 .unsqueeze(0)
                 .unsqueeze(0),
                 )
+        self.encoder_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
+        self.decoder_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
 
     @property
     def hidden_size(self):
@@ -407,14 +407,14 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
             futures_mask = dst_mask & futures_mask.to(dtype=torch.bool)
 
         src_enc = self.encoder_embeddings(src)
-        src_enc = self.encoder_embeddings_layer_norm(src_enc)
         for t in self.encoder:
             src_enc = t(src_enc, src_mask)
-
+        src_enc = self.encoder_layer_norm(src_enc)
         dst_enc = self.decoder_embeddings(dst)
-        dst_enc = self.decoder_embeddings_layer_norm(dst_enc)
         for t in self.decoder:
             dst_enc = t(src_enc, dst_enc, src_mask, futures_mask)
+        dst_enc = self.decoder_layer_norm(dst_enc)
+
         return dst_enc
 
     def init_layer_weights(self, module):
@@ -445,10 +445,12 @@ class PreLayerNormTransformerSequenceGenerator(PreLayerNormTransformerEncoderDec
             activation: nn.Module = nn.GELU(),
             feed_forward_size: Optional[int] = None,
             max_seq_len: int = 1024,
-            do_embeddings_layer_norm=True,
             MultiHeadedEncoderDecoderAttentionImpl = MultiHeadedEncoderDecoderAttention,
-            MultiHeadedAttentionImpl = MultiHeadedAttention,
-            LayerNormImpl = nn.LayerNorm
+            EncoderMultiHeadedAttentionImpl = MultiHeadedAttention,
+            DecoderMultiHeadedAttentionImpl = MultiHeadedAttention,
+            LayerNormImpl = nn.LayerNorm,
+            FFNCreator = create_feed_forward_layer,
+
     ):
         super().__init__(
             EmbeddingClass,
@@ -463,10 +465,11 @@ class PreLayerNormTransformerSequenceGenerator(PreLayerNormTransformerEncoderDec
             activation,
             feed_forward_size,
             max_seq_len,
-            do_embeddings_layer_norm,
             MultiHeadedEncoderDecoderAttentionImpl,
-            MultiHeadedAttentionImpl,
+            EncoderMultiHeadedAttentionImpl,
+            DecoderMultiHeadedAttentionImpl,
             LayerNormImpl,
+            FFNCreator,
         )
         self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
 
