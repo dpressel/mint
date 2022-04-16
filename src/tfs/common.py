@@ -8,7 +8,6 @@ import logging
 
 logger = logging.getLogger('tfs')
 
-LayerNormImpl = nn.LayerNorm
 
 class WeightTiedVocabProjection(nn.Module):
     """Projection layer tied to the input embeddings

@@ -32,6 +32,8 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         layer_norm_eps: float = 1e-12,
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
+        MultiHeadedAttentionImpl = MultiHeadedAttention,
+        LayerNormImpl = nn.LayerNorm
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -47,7 +49,7 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         self.hidden_size = hidden_size
         self.dropout = dropout
         self.d_ff = feed_forward_size
-        self.self_attention = MultiHeadedAttention(hidden_size, num_heads)
+        self.self_attention = MultiHeadedAttentionImpl(hidden_size, num_heads)
         self.self_attention_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
         self.ffn = create_feed_forward_layer(hidden_size, feed_forward_size, activation)
         self.output_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
@@ -106,8 +108,10 @@ class PreLayerNormTransformerEncoder(nn.Module):
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
         max_seq_len: int = 512,
+        MultiHeadedAttentionImpl = MultiHeadedAttention,
+        LayerNormImpl = nn.LayerNorm
     ):
-        """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
+        """Set up initialization for a (pre-layer-norm) Transformer
 
         :param vocab_size: The size of the input vocabulary
         :param padding_idx: The padding index, defaults to 0
@@ -125,7 +129,7 @@ class PreLayerNormTransformerEncoder(nn.Module):
         self.encoder = nn.ModuleList(
             [
                 PreLayerNormTransformerEncoderLayer(
-                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size
+                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, MultiHeadedAttentionImpl, LayerNormImpl,
                 )
                 for _ in range(num_layers)
             ]
@@ -210,6 +214,9 @@ class PreLayerNormTransformerDecoderLayer(nn.Module):
             layer_norm_eps: float = 1e-12,
             activation: nn.Module = nn.GELU(),
             feed_forward_size: Optional[int] = None,
+            MultiHeadedEncoderDecoderAttentionImpl = MultiHeadedEncoderDecoderAttention,
+            MultiHeadedAttentionImpl = MultiHeadedAttention,
+            LayerNormImpl = nn.LayerNorm
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -225,9 +232,9 @@ class PreLayerNormTransformerDecoderLayer(nn.Module):
         self.hidden_size = hidden_size
         self.dropout = dropout
         self.d_ff = feed_forward_size
-        self.self_attention = MultiHeadedAttention(hidden_size, num_heads)
+        self.self_attention = MultiHeadedAttentionImpl(hidden_size, num_heads)
         self.self_attention_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
-        self.encoder_attention = MultiHeadedEncoderDecoderAttention(hidden_size, num_heads)
+        self.encoder_attention = MultiHeadedEncoderDecoderAttentionImpl(hidden_size, num_heads)
         self.encoder_attention_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
         self.ffn = create_feed_forward_layer(hidden_size, feed_forward_size, activation)
         self.output_layer_norm = LayerNormImpl(hidden_size, layer_norm_eps)
@@ -294,6 +301,10 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
             feed_forward_size: Optional[int] = None,
             max_seq_len: int = 512,
             do_embeddings_layer_norm=True,
+            MultiHeadedEncoderDecoderAttentionImpl = MultiHeadedEncoderDecoderAttention,
+            EncoderMultiHeadedAttentionImpl = MultiHeadedAttention,
+            DecoderMultiHeadedAttentionImpl = MultiHeadedAttention,
+            LayerNormImpl = nn.LayerNorm
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -326,13 +337,13 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
 
         self.encoder = nn.ModuleList(
             [
-                PreLayerNormTransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size)
+                PreLayerNormTransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, EncoderMultiHeadedAttentionImpl, LayerNormImpl)
                 for _ in range(num_encoder_layers)
             ]
         )
         self.decoder = nn.ModuleList(
             [
-                PreLayerNormTransformerDecoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size)
+                PreLayerNormTransformerDecoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, MultiHeadedEncoderDecoderAttentionImpl, DecoderMultiHeadedAttentionImpl, LayerNormImpl)
                 for _ in range(num_decoder_layers)
             ]
         )
@@ -435,6 +446,9 @@ class PreLayerNormTransformerSequenceGenerator(PreLayerNormTransformerEncoderDec
             feed_forward_size: Optional[int] = None,
             max_seq_len: int = 1024,
             do_embeddings_layer_norm=True,
+            MultiHeadedEncoderDecoderAttentionImpl = MultiHeadedEncoderDecoderAttention,
+            MultiHeadedAttentionImpl = MultiHeadedAttention,
+            LayerNormImpl = nn.LayerNorm
     ):
         super().__init__(
             EmbeddingClass,
@@ -450,6 +464,9 @@ class PreLayerNormTransformerSequenceGenerator(PreLayerNormTransformerEncoderDec
             feed_forward_size,
             max_seq_len,
             do_embeddings_layer_norm,
+            MultiHeadedEncoderDecoderAttentionImpl,
+            MultiHeadedAttentionImpl,
+            LayerNormImpl,
         )
         self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
 
