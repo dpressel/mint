@@ -307,13 +307,10 @@ class T5Creator:
     def convert_state_dict(cls, tlm, t5_state_dict):
         """Convert the state dict to TFS compatible names
 
-        The encoder token embeddings (AKA word_embeddings) are shared with the decoder token embeddings, and
-        in the HF implementation, this is done via `self.shared` so all 3 items are in the original checkpoint,
-        and we only need one of them.  We have tied these together by assignment already, so loading the encoder's
-        word embeddings updates the decoder word embeddings too
+        The relative bias components are stored at layer 0 in HF, and we keep a separate class for each of those
+        so we need to be careful WRT to that portion.
 
-        Note that the positional embeddings are different for encoder and decoder, so these are not shared and both
-        are loaded
+        The rest is fairly vanilla, but using a regex replacement makes it much more terse due to naming
 
         :param tlm:
         :param t5_state_dict:
