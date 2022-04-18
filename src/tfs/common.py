@@ -158,12 +158,18 @@ def create_feed_forward_layer(
     d_ff = feed_forward_size if feed_forward_size else 4 * hidden_size
     return nn.Sequential(nn.Linear(hidden_size, d_ff), activation, nn.Linear(d_ff, hidden_size))
 
-class DefaultLayerFactory:
 
+class DefaultLayerFactory:
+    """Implements Transformer primitives using the basic defaults we have used so far
+
+    """
     _instance = None
     @staticmethod
     def get_instance():
-        """ Static access method. """
+        """Access the abstract factory pattern in this way
+
+        It will be created on first use
+        """
         if DefaultLayerFactory._instance is None:
             DefaultLayerFactory()
 

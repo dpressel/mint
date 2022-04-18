@@ -171,7 +171,7 @@ class MultiHeadedRelativeAttentionBias(nn.Module):
 
 
 def create_feed_forward_layer_no_bias(
-        hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.GELU()
+        hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.ReLU()
 ):
     """Create a feed-forward layer (called FFN in the paper)
 
@@ -179,7 +179,7 @@ def create_feed_forward_layer_no_bias(
 
     :param hidden_size: The transformer block size (d_model in the paper)
     :param feed_forward_size: The feed-forward layer size, or 4 * hidden_size.
-    :param activation: The activation function, defaults to GELU
+    :param activation: The activation function, defaults to RELU
     :return: An n.Sequential that wraps the whole FFN transformation block
     """
     d_ff = feed_forward_size if feed_forward_size else 4 * hidden_size
