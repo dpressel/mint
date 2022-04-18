@@ -207,6 +207,8 @@ class LayerNormWithoutAdditiveBias(nn.Module):
         return self.weight * y
 
 
+
+
 class WordOnlyEmbedding(nn.Module):
     """Embeddings for T5
 
@@ -237,48 +239,6 @@ class WordOnlyEmbedding(nn.Module):
         return self.word_embeddings.weight
 
 
-class T5EncoderDecoder(PreLayerNormTransformerEncoderDecoder):
-    def __init__(
-        self,
-        vocab_size: int,
-        padding_idx: int = 1,
-        hidden_size: int = 768,
-        num_heads: int = 12,
-        num_encoder_layers: int = 12,
-        num_decoder_layers: int = 12,
-        dropout: float = 0.1,
-        layer_norm_eps=1e-12,
-        activation: nn.Module = nn.ReLU(),
-        feed_forward_size: Optional[int] = None,
-        max_seq_len: int = 512,
-    ):
-        enc_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, True)
-        dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
-        enc_dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
-        super().__init__(
-            WordOnlyEmbedding,
-            vocab_size,
-            padding_idx,
-            hidden_size,
-            num_heads,
-            num_encoder_layers,
-            num_decoder_layers,
-            dropout,
-            layer_norm_eps,
-            activation,
-            feed_forward_size,
-            max_seq_len,
-            lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(x, y, enc_dec_shared_relative_attention_bias),
-            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, enc_shared_relative_attention_bias),
-            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, dec_shared_relative_attention_bias),
-            LayerNormWithoutAdditiveBias,
-            create_feed_forward_layer_no_bias,
-        )
-        self.enc_shared_relative_attention_bias = enc_shared_relative_attention_bias
-        self.dec_shared_relative_attention_bias = dec_shared_relative_attention_bias
-        self.enc_dec_shared_relative_attention_bias = enc_dec_shared_relative_attention_bias
-
-
 class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
     def __init__(
         self,
@@ -298,6 +258,27 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
         enc_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, True)
         dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
         enc_dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
+        class LayerFactory:
+
+            _instance = None
+            @staticmethod
+            def get_instance():
+                """ Static access method. """
+                if LayerFactory._instance is None:
+                    LayerFactory()
+
+                return LayerFactory._instance
+
+            def __init__(self):
+                if LayerFactory._instance is not None:
+                    raise Exception("Singleton constructor call.  Expected no definition")
+
+                self.encoder_multihead_attention = lambda x, y: MultiHeadedRelativeAttentionBias(x, y, enc_shared_relative_attention_bias)
+                self.decoder_multihead_attention = lambda x, y: MultiHeadedRelativeAttentionBias(x, y, dec_shared_relative_attention_bias)
+                self.encoder_decoder_attention = lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(x, y, enc_dec_shared_relative_attention_bias)
+                self.layer_norm = LayerNormWithoutAdditiveBias
+                self.feed_forward = create_feed_forward_layer_no_bias
+                LayerFactory._instance = self
         super().__init__(
             WordOnlyEmbedding,
             vocab_size,
@@ -311,11 +292,7 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
             activation,
             feed_forward_size,
             max_seq_len,
-            lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(x, y, enc_dec_shared_relative_attention_bias),
-            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, enc_shared_relative_attention_bias),
-            lambda x, y: MultiHeadedRelativeAttentionBias(x, y, dec_shared_relative_attention_bias),
-            LayerNormWithoutAdditiveBias,
-            create_feed_forward_layer_no_bias,
+            LayerFactory.get_instance(),
         )
         self.enc_shared_relative_attention_bias = enc_shared_relative_attention_bias
         self.dec_shared_relative_attention_bias = dec_shared_relative_attention_bias

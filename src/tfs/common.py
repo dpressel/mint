@@ -157,3 +157,24 @@ def create_feed_forward_layer(
     """
     d_ff = feed_forward_size if feed_forward_size else 4 * hidden_size
     return nn.Sequential(nn.Linear(hidden_size, d_ff), activation, nn.Linear(d_ff, hidden_size))
+
+class DefaultLayerFactory:
+
+    _instance = None
+    @staticmethod
+    def get_instance():
+        """ Static access method. """
+        if DefaultLayerFactory._instance is None:
+            DefaultLayerFactory()
+
+        return DefaultLayerFactory._instance
+
+    def __init__(self):
+        if DefaultLayerFactory._instance is not None:
+            raise Exception("Singleton constructor call.  Expected no definition")
+        self.encoder_multihead_attention = MultiHeadedAttention
+        self.decoder_multihead_attention = MultiHeadedAttention
+        self.encoder_decoder_attention = MultiHeadedEncoderDecoderAttention
+        self.layer_norm = nn.LayerNorm
+        self.feed_forward = create_feed_forward_layer
+        DefaultLayerFactory._instance = self

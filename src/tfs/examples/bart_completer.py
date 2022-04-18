@@ -42,6 +42,8 @@ def main():
         tokenized_input = tokenizer.encode(query)
         logger.info("Input Sequence: %s", ' '.join(tokenized_input.tokens))
         input_ids = torch.tensor(tokenized_input.ids, device=args.device).unsqueeze(0)
+
+        input_enc = model.encode(input_ids)
         outputs = [DECODER_START_TOKEN]
         with torch.no_grad():
 
@@ -49,7 +51,7 @@ def main():
 
                 decode_ids = torch.tensor(outputs, device=args.device)
                 # signature is encoder, decoder (up till now), encoder_mask, decoder_mask
-                response = model(input_ids, decode_ids.unsqueeze(0)).squeeze(0)
+                response = model.decode(input_enc, decode_ids.unsqueeze(0)).squeeze(0)
                 response = response[len(decode_ids) - 1]
                 if sampling:
                     sample_dist = torch.softmax(response / temperature, -1)
