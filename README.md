@@ -20,7 +20,7 @@ This code was written for a (not-yet-complete) Colab Tutorial
 - [BERT from scratch](https://colab.research.google.com/drive/175hnhLkJcXH40tGGpO-1kbBrb2IIcIuT?usp=sharing)
 - [GPT & GPT2 from scratch](https://colab.research.google.com/drive/1svaeO-TF1UEEIq8aew4B5x-y4i79fIXv?usp=sharing)
 - [BART from scratch](https://colab.research.google.com/drive/12C764uTLwPMM9hUlprm_a4bUwHz91a7P?usp=sharing)
-
+- [T5 from scratch](https://colab.research.google.com/drive/1G3egJjNRrXog-8reY1Ssfoa6c92Dp4jh?usp=sharing)
 
 The code here is factored out here as a python package for easy use outside of the tutorial.
 

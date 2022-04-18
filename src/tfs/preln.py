@@ -82,7 +82,6 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         return y
 
 
-
 class PreLayerNormTransformerEncoder(nn.Module):
     """A Pre-Layer Norm Transformer Encoder (with no task heads)
 
