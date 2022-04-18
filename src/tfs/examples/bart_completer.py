@@ -10,6 +10,9 @@ from bart import BartCreator
 logger = logging.getLogger(__file__)
 DECODER_START_TOKEN = 2
 """An example program where you can provide your BART model with a priming sequence and have it complete
+
+TODO: this is very inefficient, set up interface to allow pre-compute of encoder so we arent doing that each
+time
 """
 
 
