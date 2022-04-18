@@ -60,8 +60,6 @@ def main():
                     response = response.argmax(-1).item()
 
                 outputs.append(response)
-            #print(outputs)
-            #print([tokenizer.id_to_token(o) for o in outputs])
             outputs = tokenizer.decode(outputs[1:])
             return outputs
 
