@@ -302,10 +302,9 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
         return nn.CrossEntropyLoss(ignore_index=0)
 
 
-
 class T5Creator:
     @classmethod
-    def convert_state_dict(cls, tlm, bert_state_dict):
+    def convert_state_dict(cls, tlm, t5_state_dict):
         """Convert the state dict to TFS compatible names
 
         The encoder token embeddings (AKA word_embeddings) are shared with the decoder token embeddings, and
@@ -317,18 +316,18 @@ class T5Creator:
         are loaded
 
         :param tlm:
-        :param bert_state_dict:
+        :param t5_state_dict:
         :return:
         """
         tlm_field_names = set(k for k in tlm.state_dict().keys())
-        hf_field_names = bert_state_dict.keys()
+        hf_field_names = t5_state_dict.keys()
 
         unused_checkpoint_fields = set(hf_field_names)
         remap = {}
 
         for field_name in hf_field_names:
             if 'relative_attention_bias.weight' in field_name:
-                bert_state_dict[field_name] = bert_state_dict[field_name].T
+                t5_state_dict[field_name] = t5_state_dict[field_name].T
 
             new_field_name = field_name.replace('shared.weight', 'encoder_embeddings.word_embeddings.weight')
             new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.k.weight', r'\1coder.\2.self_attention.key.weight', new_field_name)
@@ -363,9 +362,7 @@ class T5Creator:
             if new_field_name in tlm_field_names:
                 tlm_field_names.remove(new_field_name)
                 unused_checkpoint_fields.remove(field_name)
-                remap[new_field_name] = bert_state_dict[field_name]
-        print('MISSING', tlm_field_names)
-        print('UNUSED', unused_checkpoint_fields)
+                remap[new_field_name] = t5_state_dict[field_name]
         tlm.load_state_dict(remap, strict=False)
         return tlm_field_names, unused_checkpoint_fields
 
