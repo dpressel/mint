@@ -5,6 +5,7 @@ import math
 from typing import Optional
 from tfs.preln import PreLayerNormTransformerEncoderDecoder, PreLayerNormTransformerSequenceGenerator
 import logging
+import numpy as np
 import re
 logger = logging.getLogger('tfs')
 
@@ -379,3 +380,61 @@ class T5Creator:
         logging.info(f'Unused checkpoint fields: {unused}')
         return seq2seq
 
+
+def corrupted_spans(inputs, vocab):
+    """N-grams are sampled and replaced by a single variable and labels spans are segments of vars
+
+    :param inputs: Uncorrupted text e.g. `Thank you for inviting me to your party last week .`
+    :param vocab: A dictionary of strings to integers
+    :return: updated inputs and labels e.g. `Thank you <X> to <Y> week .`|`<X> for inviting me <Y> your party last <Z>`|
+    """
+    pad_value = 0
+    var_id = max(vocab.values())
+    labels = np.zeros_like(inputs)
+
+    span_lengths = np.random.poisson(3, len(inputs))
+    masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
+    last = 0
+    masked = []
+    label_values = []
+    for start in masked_indices.nonzero()[0]:
+        if start <= last:
+            continue
+        span_end = start + span_lengths[start]
+        if span_end >= len(inputs) - 1:
+            break
+        label_values += [var_id] + inputs[start:span_end].tolist()
+        masked += inputs[last:start].tolist() + [var_id]
+        var_id -= 1
+        last = start + span_lengths[start]
+    if last < len(inputs):
+        masked += inputs[last:].tolist()
+
+    label_values += [var_id]
+    num_masked = len(labels) - len(masked)
+    if num_masked > 0:
+        masked += [pad_value] * num_masked
+    label_values = np.array(label_values)
+    labels[:len(label_values)] = label_values
+    return np.array(masked), labels
+
+
+class NoisingCollator:
+    """For each item in a batch, noise it and return noised and denoised tensors"""
+
+    def __init__(self, vocab):
+        super().__init__()
+        self.vocab = vocab
+
+    def __call__(self, batch):
+        """Take a batch of inputs of X, and convert it to a noised X, Y"""
+        noised = []
+        denoised = []
+        for x in batch:
+            x_noise, x_recon = corrupted_spans(x[0].numpy(), self.vocab)
+            noised.append(torch.from_numpy(x_noise))
+            denoised.append(torch.from_numpy(x_recon))
+
+        noised = torch.stack(noised)
+        denoised = torch.stack(denoised)
+        return noised, denoised
