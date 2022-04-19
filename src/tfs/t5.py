@@ -374,7 +374,8 @@ class T5Creator:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = T5Creator.get_vocab_and_hidden_dims(hf_dict)
-        seq2seq = T5SequenceGenerator(vocab_size, hidden_size=hidden_size, **kwargs)
+        kwargs['hidden_size'] = hidden_size
+        seq2seq = T5SequenceGenerator(vocab_size, **kwargs)
         missing, unused = T5Creator.convert_state_dict(seq2seq, hf_dict)
         logging.info(f'Unset params: {missing}')
         logging.info(f'Unused checkpoint fields: {unused}')
@@ -390,7 +391,7 @@ def corrupted_spans(inputs, vocab):
     """
     pad_value = 0
     var_id = max(vocab.values())
-    labels = np.zeros_like(inputs)
+    labels = np.zeros(inputs.shape[0] + 1, dtype=inputs.dtype)
 
     span_lengths = np.random.poisson(3, len(inputs))
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
@@ -411,11 +412,11 @@ def corrupted_spans(inputs, vocab):
         masked += inputs[last:].tolist()
 
     label_values += [var_id]
-    num_masked = len(labels) - len(masked)
+    num_masked = len(inputs) - len(masked)
     if num_masked > 0:
         masked += [pad_value] * num_masked
     label_values = np.array(label_values)
-    labels[:len(label_values)] = label_values
+    labels[1:1+len(label_values)] = label_values
     return np.array(masked), labels
 
 
