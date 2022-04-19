@@ -195,12 +195,6 @@ class LayerNormWithoutAdditiveBias(nn.Module):
         self.weight = nn.Parameter(torch.ones(hidden_dim))
         self.eps = eps
 
-    @classmethod
-    def from_layer_norm(cls, module):
-        ln = cls(module.weight.shape[0], module.eps)
-        ln.weight = module.weight
-        return ln
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         variance = x.to(torch.float32).pow(2).mean(-1, keepdim=True)
         y = x * torch.rsqrt(variance + self.eps)
