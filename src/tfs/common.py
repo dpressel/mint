@@ -118,8 +118,8 @@ class MultiHeadedEncoderDecoderAttention(nn.Module):
     def forward(self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
 
-        :param src: A `[B, T_q, C]` tensor where B is batch, T_q is time, C is hidden size
-        :param dst: A `[B, T_k, C]` tensor where B is batch, T_k is time, C is hidden size
+        :param src: A `[B, T_k, C]` tensor where B is batch, T_k is time, C is hidden size
+        :param dst: A `[B, T_q, C]` tensor where B is batch, T_q is time, C is hidden size
         :param mask: An optional mask to apply to the src (keys) tensor
         :return: The attended value vector projected into the output space
         """

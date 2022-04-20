@@ -3,7 +3,7 @@ import torch.nn as nn
 import os
 import math
 from typing import Optional
-from tfs.preln import PreLayerNormTransformerEncoderDecoder, PreLayerNormTransformerSequenceGenerator
+from tfs.preln import PreLayerNormTransformerSequenceGenerator
 import logging
 import numpy as np
 import re
@@ -42,6 +42,9 @@ def _relative_position_bucket(relative_position, is_bidirectional, num_buckets, 
 
 
 class SharedRelativeAttentionBias(nn.Module):
+    """T5 relative embedding implementation
+
+    """
     def __init__(self, num_heads, is_bidirectional):
         super().__init__()
         self.num_heads = num_heads
@@ -54,7 +57,12 @@ class SharedRelativeAttentionBias(nn.Module):
         self.relative_attention_bias = nn.Parameter(rel_embedding, requires_grad=True)
 
     def forward(self, T_k, T_q):
+        """Get relative attention bias embedding
 
+        :param T_k: The encoder input length
+        :param T_q: The decoder input length
+        :return:
+        """
         memory_position = torch.arange(T_k).view(1, -1)
         query_position = torch.arange(T_q).view(-1, 1)
         relative_position = memory_position - query_position
@@ -94,8 +102,8 @@ class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
     def forward(self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
 
-        :param src: A `[B, T_q, C]` tensor where B is batch, T_q is time, C is hidden size
-        :param dst: A `[B, T_k, C]` tensor where B is batch, T_k is time, C is hidden size
+        :param src: A `[B, T_k, C]` tensor where B is batch, T_k is time, C is hidden size
+        :param dst: A `[B, T_q, C]` tensor where B is batch, T_q is time, C is hidden size
         :param mask: An optional mask to apply to the src (keys) tensor
         :return: The attended value vector projected into the output space
         """
@@ -188,7 +196,13 @@ def create_feed_forward_layer_no_bias(
 
 
 class LayerNormWithoutAdditiveBias(nn.Module):
-    """T5 uses a layer norm with no additive bias
+    """T5 divides by the root-mean-square, with a learned weight and no bias
+
+    The calcuation here is to normalize by the root-mean-square (RMS).
+    In CUDA, it may be slightly faster to perform an rsqrt() than doing
+    a sqrt() and then dividing:
+
+    http://adrianboeing.blogspot.com/2009/10/timing-square-root-on-gpu.html
 
     """
     def __init__(self, hidden_dim: int, eps: float = 1e-12):
@@ -197,11 +211,14 @@ class LayerNormWithoutAdditiveBias(nn.Module):
         self.eps = eps
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Calculate RMS to normalize, apply learned weight
+
+        :param x:
+        :return:
+        """
         variance = x.to(torch.float32).pow(2).mean(-1, keepdim=True)
         y = x * torch.rsqrt(variance + self.eps)
         return self.weight * y
-
-
 
 
 class WordOnlyEmbedding(nn.Module):
@@ -387,15 +404,17 @@ def corrupted_spans(inputs, vocab):
 
     :param inputs: Uncorrupted text e.g. `Thank you for inviting me to your party last week .`
     :param vocab: A dictionary of strings to integers
-    :return: updated inputs and labels e.g. `Thank you <X> to <Y> week .`|`<X> for inviting me <Y> your party last <Z>`|
+    :return: updated inputs and labels e.g. `Thank you <X> to <Y> week .`|`<pad> <X> for inviting me <Y> your party last <Z>`|
     """
     var_id = max(vocab.values())
+    bos_id = 0
     eos_id = vocab.get('</s>')
+
     span_lengths = np.random.poisson(3, len(inputs))
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
     last = 0
     masked = []
-    label_values = []
+    label_values = [bos_id]
     for start in masked_indices.nonzero()[0]:
         if start <= last:
             continue
@@ -415,7 +434,10 @@ def corrupted_spans(inputs, vocab):
 
 
 class NoisingCollator:
-    """For each item in a batch, noise it and return noised and denoised tensors"""
+    """For each item in a batch, noise it and return noised and denoised tensors
+
+    This function pads on the fly based on the m
+    """
 
     def __init__(self, vocab):
         super().__init__()
