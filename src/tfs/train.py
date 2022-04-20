@@ -456,7 +456,7 @@ class SingleDeviceSeq2SeqTrainer(SingleDeviceTrainer):
 
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1])
+        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         return loss.item()
@@ -849,7 +849,7 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
         (x, y) = batch
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1])
+        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         loss.backward()
@@ -860,7 +860,7 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
 
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1])
+        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         return loss.item()
