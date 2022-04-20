@@ -389,9 +389,7 @@ def corrupted_spans(inputs, vocab):
     :param vocab: A dictionary of strings to integers
     :return: updated inputs and labels e.g. `Thank you <X> to <Y> week .`|`<X> for inviting me <Y> your party last <Z>`|
     """
-    pad_value = 0
     var_id = max(vocab.values())
-    labels = np.zeros(inputs.shape[0] + 1, dtype=inputs.dtype)
 
     span_lengths = np.random.poisson(3, len(inputs))
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
@@ -412,12 +410,8 @@ def corrupted_spans(inputs, vocab):
         masked += inputs[last:].tolist()
 
     label_values += [var_id]
-    num_masked = len(inputs) - len(masked)
-    if num_masked > 0:
-        masked += [pad_value] * num_masked
     label_values = np.array(label_values)
-    labels[1:1+len(label_values)] = label_values
-    return np.array(masked), labels
+    return np.array(masked), np.array(label_values)
 
 
 class NoisingCollator:
@@ -431,11 +425,25 @@ class NoisingCollator:
         """Take a batch of inputs of X, and convert it to a noised X, Y"""
         noised = []
         denoised = []
+        max_x = 0
+        max_y = 0
         for x in batch:
             x_noise, x_recon = corrupted_spans(x[0].numpy(), self.vocab)
+            if len(x_noise) > max_x:
+                max_x = len(x_noise)
+            if len(x_recon) > max_y:
+                max_y = len(x_recon)
+
             noised.append(torch.from_numpy(x_noise))
             denoised.append(torch.from_numpy(x_recon))
 
-        noised = torch.stack(noised)
-        denoised = torch.stack(denoised)
-        return noised, denoised
+        x = torch.zeros((len(noised), max_x,), dtype=torch.long)
+        y = torch.zeros((len(denoised), max_y,), dtype=torch.long)
+
+        for i in range(len(noised)):
+            noised[i] = noised[i][:max_x]
+            denoised[i] = denoised[i][:max_y]
+            x[i, :len(noised[i])] = noised[i]
+            y[i, :len(denoised[i])] = denoised[i]
+
+        return x, y

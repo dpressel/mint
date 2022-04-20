@@ -28,7 +28,7 @@ class BartLearnedPositionalEmbedding(nn.Module):
 
     BART_POS_OFFSET = 2
 
-    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 1024):
+    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 1, max_seq_len: int = 1024):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
         self.position_embeddings = nn.Embedding(
