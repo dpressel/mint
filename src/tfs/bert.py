@@ -3,7 +3,8 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.common import TransformerEncoder, WeightTiedVocabProjection
+from tfs.postln import TransformerEncoder
+from tfs.common import WeightTiedVocabProjection
 import logging
 
 logger = logging.getLogger('tfs')

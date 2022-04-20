@@ -5,22 +5,24 @@ import torch
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from tokenizers import Tokenizer
-from bart import BartCreator
+from t5 import T5Creator
 
 logger = logging.getLogger(__file__)
-DECODER_START_TOKEN = 2
-"""An example program where you can provide your BART model with a priming sequence and have it complete
-
+DECODER_START_TOKEN = 0
+"""An example program where you can provide your T5 model with a priming sequence and have it complete
 """
 
 
 def main():
-    parser = argparse.ArgumentParser(description='An interactive shell with BART')
+    parser = argparse.ArgumentParser(description='An interactive shell with T5')
     parser.add_argument("--model", type=str, required=True, help="Start from a model")
     parser.add_argument("--tok_file", type=str, required=True, help="Path to tokenizer.json file")
     parser.add_argument("--query", type=str, help="Optional query.  If you pass this we wont use the repl")
-    parser.add_argument("--history_file", type=str, default=".bart_history")
+    parser.add_argument("--history_file", type=str, default=".t5_history")
     parser.add_argument("--max_len", type=int, default=50)
+    parser.add_argument("--num_encoder_layers", default=12, type=int)
+    parser.add_argument("--num_decoder_layers", default=12, type=int)
+    parser.add_argument("--num_heads", default=12, type=int)
     parser.add_argument("--sample", action="store_true")
     parser.add_argument("--temperature", default=1.0, type=float)
     parser.add_argument(
@@ -32,15 +34,15 @@ def main():
         args.tok_file = os.path.join(args.tok_file, 'tokenizer.json')
     tokenizer = Tokenizer.from_file(args.tok_file)
 
-    model = BartCreator.from_pretrained(args.model).eval()
+    model = T5Creator.from_pretrained(args.model, **vars(args)).eval()
     model.to(args.device)
 
-    def complete(query, sampling, temperature):
+    EOS_ID = tokenizer.get_vocab().get('</s>')
+    def complete(query, sampling, temperature, decode_as_text=True):
         logger.info("Query: %s", query)
         tokenized_input = tokenizer.encode(query)
         logger.info("Input Sequence: %s", ' '.join(tokenized_input.tokens))
         input_ids = torch.tensor(tokenized_input.ids, device=args.device).unsqueeze(0)
-
         input_enc = model.encode(input_ids)
         outputs = [DECODER_START_TOKEN]
         with torch.no_grad():
@@ -58,15 +60,17 @@ def main():
                 else:
                     response = response.argmax(-1).item()
 
+                if response == EOS_ID:
+                    break
                 outputs.append(response)
-            outputs = tokenizer.decode(outputs[2:])
+            outputs = tokenizer.decode(outputs[1:]) if decode_as_text else outputs
             return outputs
 
     if args.query:
         print(complete(args.query, args.sample, args.temperature))
         return
 
-    prompt_name = f'BART>> '
+    prompt_name = f'T5>> '
     history = FileHistory(args.history_file)
     while True:
         query = prompt(prompt_name, history=history)

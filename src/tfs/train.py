@@ -76,7 +76,7 @@ class SingleDeviceTrainer:
         self.plateau_fract = plateau_fract
         self.alpha = alpha_decay
         self.model = model
-        self.loss_function = model.create_loss()
+        self.loss_function = model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
         self.device = 'cpu'
         self.num_train_workers = num_train_workers
         self.num_valid_workers = num_valid_workers
@@ -445,7 +445,7 @@ class SingleDeviceSeq2SeqTrainer(SingleDeviceTrainer):
         (x, y) = batch
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1])
+        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         loss.backward()
@@ -456,7 +456,7 @@ class SingleDeviceSeq2SeqTrainer(SingleDeviceTrainer):
 
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1])
+        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         return loss.item()
@@ -542,7 +542,7 @@ class DistributedTrainer:
         self.plateau_fract = plateau_fract
         self.alpha = alpha_decay
         self.model = model
-        self.loss_function = model.create_loss()
+        self.loss_function = model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
         self.device = 'cpu'
         self.num_train_workers = num_train_workers
         self.num_valid_workers = num_valid_workers
@@ -849,7 +849,7 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
         (x, y) = batch
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1])
+        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         loss.backward()
@@ -860,7 +860,7 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
 
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1])
+        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         return loss.item()

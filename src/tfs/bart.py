@@ -3,7 +3,8 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.common import TransformerEncoderDecoder, TransformerSequenceGenerator
+from tfs.postln import TransformerEncoderDecoder, TransformerSequenceGenerator
+
 import logging
 import random
 
@@ -27,7 +28,7 @@ class BartLearnedPositionalEmbedding(nn.Module):
 
     BART_POS_OFFSET = 2
 
-    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 1024):
+    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 1, max_seq_len: int = 1024):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
         self.position_embeddings = nn.Embedding(
@@ -124,6 +125,7 @@ class BartPooledEncoderDecoder(TransformerEncoderDecoder):
         )
 
         self.output = output if output else nn.Identity()
+        self.apply(self.init_layer_weights)
 
     def forward(
         self,
@@ -173,6 +175,7 @@ class BartSequenceGenerator(TransformerSequenceGenerator):
             feed_forward_size,
             max_seq_len,
         )
+        self.apply(self.init_layer_weights)
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=1)
