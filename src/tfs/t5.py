@@ -91,16 +91,20 @@ class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
 
         d_k = hidden_size // num_heads
         self.query = nn.Linear(hidden_size, num_heads * d_k, bias=False)
+        self.query.weight.data.normal_(mean=0.0, std=hidden_size ** -0.5)
         self.key = nn.Linear(hidden_size, num_heads * d_k, bias=False)
+        self.key.weight.data.normal_(mean=0.0, std=hidden_size ** -0.5)
         self.value = nn.Linear(hidden_size, num_heads * d_k, bias=False)
+        self.value.weight.data.normal_(mean=0.0, std=hidden_size ** -0.5)
         self.output = nn.Linear(num_heads * d_k, hidden_size, bias=False)
+        self.output.weight.data.normal_(mean=0.0, std=hidden_size ** -0.5)
+
         self.num_heads = num_heads
         self.d_k = d_k
         self.relative_attention_bias = relative_attention_bias
 
-
     def forward(self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
+        """Multi-headed encoder-decoder attention with relative bias
 
         :param src: A `[B, T_k, C]` tensor where B is batch, T_k is time, C is hidden size
         :param dst: A `[B, T_q, C]` tensor where B is batch, T_q is time, C is hidden size
@@ -120,9 +124,6 @@ class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
 
         if mask is not None:
             dot_prod = dot_prod.masked_fill(mask == False, -1e9)
-
-
-
 
         attn = nn.functional.softmax(dot_prod, dim=-1)
         pre_output = attn @ value_vec
@@ -157,7 +158,7 @@ class MultiHeadedRelativeAttentionBias(nn.Module):
         self.relative_attention_bias = relative_attention_bias
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
+        """Multi-headed self attention with relative bias
 
         :param x: A `[B, T, C]` tensor where B is batch, T is time, C is hidden size
         :param mask: An optional mask to apply to the attention matrix
