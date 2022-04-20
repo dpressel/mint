@@ -239,6 +239,7 @@ class WordOnlyEmbedding(nn.Module):
     def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
+        self.word_embeddings.weight.data.normal_(mean=0.0, std=1.0)
 
     def forward(self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Takes a tensor of shape `[B, T]` and an optional `token_type` of same shape
@@ -327,14 +328,13 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
     def init_layer_weights(self, module):
         """This not directly used on initialization.  If you want to use it, call `module.apply()` on it
 
-        The base classes do make use of it for MLM and pooling in their constructors
+        The derived classes are expected to call it.  At the moment all of this initialization is set during
+        module creation.
+
         :param module:
         :return:
         """
-        if isinstance(module, (nn.Embedding,)):
-            module.weight.data.normal_(mean=0.0, std=1.0)
-        if isinstance(module, (self.LayerNormImpl,)):
-            module.weight.data.fill_(1.0)
+
 
 class T5Creator:
     @classmethod
