@@ -16,13 +16,14 @@ class WeightTiedVocabProjection(nn.Module):
     input word embeddings.  The embeddings are passed in, and we use their weights for our forward function.
     """
 
-    def __init__(self, from_module: nn.Module):
+    def __init__(self, from_module: nn.Module, pre_scale=1.0):
         """This uses another module (usually an `nn.Embedding`) to implement its forward function
 
         :param from_module: Typically an `nn.Embedding` whose weights we use to implement our linear projection
         """
         super().__init__()
         self.from_module = from_module
+        self.pre_scale = pre_scale
 
     @property
     def weight(self):
@@ -34,7 +35,7 @@ class WeightTiedVocabProjection(nn.Module):
         :param x: A dense hidden vector
         :return: The vocab space output
         """
-        return nn.functional.linear(x, self.weight)
+        return nn.functional.linear(x * self.pre_scale, self.weight)
 
 
 class MultiHeadedAttention(nn.Module):

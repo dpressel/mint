@@ -306,6 +306,8 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
             max_seq_len,
             LayerFactory.get_instance(),
         )
+        # T5 has a pre projection scaling (which is missing from MHA) prior to projection
+        self.output_proj.pre_scale = hidden_size ** -0.5
         self.enc_shared_relative_attention_bias = enc_shared_relative_attention_bias
         self.dec_shared_relative_attention_bias = dec_shared_relative_attention_bias
         self.enc_dec_shared_relative_attention_bias = enc_dec_shared_relative_attention_bias

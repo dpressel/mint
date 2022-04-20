@@ -76,7 +76,7 @@ class SingleDeviceTrainer:
         self.plateau_fract = plateau_fract
         self.alpha = alpha_decay
         self.model = model
-        self.loss_function = model.create_loss()
+        self.loss_function = model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
         self.device = 'cpu'
         self.num_train_workers = num_train_workers
         self.num_valid_workers = num_valid_workers
@@ -542,7 +542,7 @@ class DistributedTrainer:
         self.plateau_fract = plateau_fract
         self.alpha = alpha_decay
         self.model = model
-        self.loss_function = model.create_loss()
+        self.loss_function = model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
         self.device = 'cpu'
         self.num_train_workers = num_train_workers
         self.num_valid_workers = num_valid_workers
