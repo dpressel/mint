@@ -15,7 +15,8 @@ Minimal PyTorch implementation of common Transformer architectures.  Currently i
 
 
 ## Colabs
-This code was written for a (not-yet-complete) Colab Tutorial
+This code was written for a (not-yet-complete) Colab Tutorial.  Each tutorial
+builds on the previous one, so they should be done in order.
 
 - [BERT from scratch](https://colab.research.google.com/drive/175hnhLkJcXH40tGGpO-1kbBrb2IIcIuT?usp=sharing)
 - [GPT & GPT2 from scratch](https://colab.research.google.com/drive/1svaeO-TF1UEEIq8aew4B5x-y4i79fIXv?usp=sharing)
