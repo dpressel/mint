@@ -475,6 +475,7 @@ class TransformerSequenceGenerator(TransformerEncoderDecoder):
             layer_factory,
         )
         self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
+        self.apply(self.init_layer_weights)
 
     def decode(self, src_enc, dst, src_mask: Optional[torch.Tensor] = None, dst_mask: Optional[torch.Tensor] = None):
         dst_enc = super().decode(src_enc, dst, src_mask, dst_mask)

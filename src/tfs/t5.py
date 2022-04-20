@@ -145,9 +145,13 @@ class MultiHeadedRelativeAttentionBias(nn.Module):
 
         d_k = hidden_size // num_heads
         self.query = nn.Linear(hidden_size, num_heads * d_k, bias=False)
+        self.query.weight.data.normal_(mean=0.0, std=hidden_size ** -0.5)
         self.key = nn.Linear(hidden_size, num_heads * d_k, bias=False)
+        self.key.weight.data.normal_(mean=0.0, std=hidden_size ** -0.5)
         self.value = nn.Linear(hidden_size, num_heads * d_k, bias=False)
+        self.value.weight.data.normal_(mean=0.0, std=hidden_size ** -0.5)
         self.output = nn.Linear(num_heads * d_k, hidden_size, bias=False)
+        self.output.weight.data.normal_(mean=0.0, std=hidden_size ** -0.5)
         self.num_heads = num_heads
         self.d_k = d_k
         self.relative_attention_bias = relative_attention_bias
@@ -192,7 +196,11 @@ def create_feed_forward_layer_no_bias(
     :return: An n.Sequential that wraps the whole FFN transformation block
     """
     d_ff = feed_forward_size if feed_forward_size else 4 * hidden_size
-    return nn.Sequential(nn.Linear(hidden_size, d_ff, bias=False), activation, nn.Linear(d_ff, hidden_size, bias=False))
+    expand = nn.Linear(hidden_size, d_ff, bias=False)
+    expand.weight.data.normal_(mean=0.0, std=hidden_size)
+    shrink = nn.Linear(d_ff, hidden_size, bias=False)
+    shrink.weight.data.normal_(mean=0.0, std=d_ff)
+    return nn.Sequential(expand, activation, shrink)
 
 
 class LayerNormWithoutAdditiveBias(nn.Module):
@@ -306,15 +314,27 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
             max_seq_len,
             LayerFactory.get_instance(),
         )
-        # T5 has a pre projection scaling (which is missing from MHA) prior to projection
+        # T5 has a pre projection scaling prior to projection
         self.output_proj.pre_scale = hidden_size ** -0.5
         self.enc_shared_relative_attention_bias = enc_shared_relative_attention_bias
         self.dec_shared_relative_attention_bias = dec_shared_relative_attention_bias
         self.enc_dec_shared_relative_attention_bias = enc_dec_shared_relative_attention_bias
+        self.apply(self.init_layer_weights)
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=0)
 
+    def init_layer_weights(self, module):
+        """This not directly used on initialization.  If you want to use it, call `module.apply()` on it
+
+        The base classes do make use of it for MLM and pooling in their constructors
+        :param module:
+        :return:
+        """
+        if isinstance(module, (nn.Embedding,)):
+            module.weight.data.normal_(mean=0.0, std=1.0)
+        if isinstance(module, (self.LayerNormImpl,)):
+            module.weight.data.fill_(1.0)
 
 class T5Creator:
     @classmethod

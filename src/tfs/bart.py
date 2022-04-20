@@ -125,6 +125,7 @@ class BartPooledEncoderDecoder(TransformerEncoderDecoder):
         )
 
         self.output = output if output else nn.Identity()
+        self.apply(self.init_layer_weights)
 
     def forward(
         self,
@@ -174,6 +175,7 @@ class BartSequenceGenerator(TransformerSequenceGenerator):
             feed_forward_size,
             max_seq_len,
         )
+        self.apply(self.init_layer_weights)
 
     def create_loss(self):
         return nn.CrossEntropyLoss(ignore_index=1)

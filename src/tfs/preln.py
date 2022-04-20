@@ -473,6 +473,7 @@ class PreLayerNormTransformerSequenceGenerator(PreLayerNormTransformerEncoderDec
             layer_factory,
         )
         self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
+        self.apply(self.init_layer_weights)
 
     def decode(
             self,
