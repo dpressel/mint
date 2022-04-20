@@ -390,7 +390,7 @@ def corrupted_spans(inputs, vocab):
     :return: updated inputs and labels e.g. `Thank you <X> to <Y> week .`|`<X> for inviting me <Y> your party last <Z>`|
     """
     var_id = max(vocab.values())
-
+    eos_id = vocab.get('</s>')
     span_lengths = np.random.poisson(3, len(inputs))
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
     last = 0
@@ -409,7 +409,7 @@ def corrupted_spans(inputs, vocab):
     if last < len(inputs):
         masked += inputs[last:].tolist()
 
-    label_values += [var_id]
+    label_values += [eos_id]
     label_values = np.array(label_values)
     return np.array(masked), np.array(label_values)
 
