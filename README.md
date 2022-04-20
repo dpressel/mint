@@ -1,4 +1,4 @@
-# Transformers from Scratch!
+# MinT: Minimal Transformers from Scratch!
 
 ## A Tiny Library for Transformers from the ground up
 
