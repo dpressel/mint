@@ -37,7 +37,8 @@ def main():
     model = T5Creator.from_pretrained(args.model, **vars(args)).eval()
     model.to(args.device)
 
-    def complete(query, sampling, temperature):
+    EOS_ID = tokenizer.get_vocab().get('</s>')
+    def complete(query, sampling, temperature, decode_as_text=True):
         logger.info("Query: %s", query)
         tokenized_input = tokenizer.encode(query)
         logger.info("Input Sequence: %s", ' '.join(tokenized_input.tokens))
@@ -59,8 +60,10 @@ def main():
                 else:
                     response = response.argmax(-1).item()
 
+                if response == EOS_ID:
+                    break
                 outputs.append(response)
-            outputs = tokenizer.decode(outputs[1:])
+            outputs = tokenizer.decode(outputs[1:]) if decode_as_text else outputs
             return outputs
 
     if args.query:
