@@ -87,9 +87,6 @@ def train_epoch(lr, epoch, loss_function, model, optimizer, train_loader, device
         train_loss.update(loss.item())
         loss.backward()
         optimizer.step()
-
-
-
         y_pred = y_pred.argmax(dim=-1).view(-1)
         y = y.view(-1)
         train_correct += (y == y_pred).sum()
@@ -174,7 +171,7 @@ def main():
     parser.add_argument("--num_train_workers", type=int, default=4, help="Number train workers")
     parser.add_argument("--num_valid_workers", type=int, default=1, help="Number train workers")
     parser.add_argument("--max_seq_len", type=int, default=512, help="Max input length")
-    parser.add_argument("--batch_size", type=int, default=20, help="Batch Size")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch Size")
     parser.add_argument("--vocab_file", type=str, help="The WordPiece model file", required=True)
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
