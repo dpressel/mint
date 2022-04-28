@@ -297,10 +297,10 @@ class SentenceBert(TransformerPooledEncoder):
         layer_norm_eps: float = 1e-12,
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
-        output: Optional[nn.Module] = None,
         max_seq_len: int = 512,
         pool_type: str = 'mean',
         use_mlp_layer: bool = False,
+        num_classes: int = 3,
         **kwargs,
     ):
         super().__init__(
@@ -319,30 +319,28 @@ class SentenceBert(TransformerPooledEncoder):
             use_mlp_layer,
             **kwargs,
         )
-        if output is None:
-            self.output_dual = nn.Linear(3 * self.hidden_size, 3)
-        else:
-            self.output_dual = output
+        self.output_dual = nn.Linear(3 * self.hidden_size, num_classes)
 
     def forward(
         self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        mask_x: Optional[torch.Tensor] = None,
-        mask_y: Optional[torch.Tensor] = None,
+        x1: torch.Tensor,
+        x2: torch.Tensor,
+        mask_x1: Optional[torch.Tensor] = None,
+        mask_x2: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
-        :param x: A one-hot (long) tensor of shape `[B, T]`
-        :param mask: An optional mask to take in for attention
-        :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
+        :param x1: A one-hot (long) tensor of shape `[B, T]` representing the first text
+        :param x2: A one-hot (long) tensor of shape `[B, T]` representing the second text
+        :param mask_x1: An optional mask to take in for attention for the first text
+        :param mask_x1: An optional mask to take in for attention for the second text
         :return:
         """
-        x_enc = super().forward(x, mask_x, torch.zeros_like(x))
-        y_enc = super().forward(y, mask_y, torch.ones_like(x))
+        enc1 = super().forward(x1, mask_x1, torch.zeros_like(x1))
+        enc2 = super().forward(x1, mask_x2, torch.ones_like(x2))
 
-        sub_enc = torch.abs(x_enc - y_enc)
-        encoded = torch.cat([x_enc, y_enc, sub_enc], -1)
+        diff_enc = torch.abs(enc1 - enc2)
+        encoded = torch.cat([enc1, enc2, diff_enc], -1)
         return self.output_dual(encoded)
 
 
@@ -435,7 +433,7 @@ class BertCreator:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BertCreator.get_vocab_and_hidden_dims(hf_dict)
-        enc = TransformerPooledEncoder(vocab_size, **kwargs)
+        enc = SentenceBert(vocab_size, **kwargs)
         missing, unused = BertCreator.convert_state_dict(enc, hf_dict)
         logging.info(f'Unset params: {missing}')
         logging.info(f'Unused checkpoint fields: {unused}')
