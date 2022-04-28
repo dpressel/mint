@@ -60,13 +60,24 @@ def valid_epoch(epoch, loss_function, model, valid_loader, device, phase="valid"
     return valid_correct / valid_total
 
 
-def train_epoch(epoch, loss_function, model, optimizer, train_loader, device):
+def train_epoch(lr, epoch, loss_function, model, optimizer, train_loader, device):
     model.train()
     train_loss = Average('train_loss')
+
+    warmup_steps = 1
+    if epoch == 0:
+        warmup_steps = int(.1 * len(train_loader))
+        logger.info("Warmup steps %d", warmup_steps)
     progress = tqdm(enumerate(train_loader), total=len(train_loader))
     train_correct = 0
     train_total = 0
+
     for i, (x1, x2, y) in progress:
+
+        lr_factor = min(1.0, (i+1) / warmup_steps)
+        for p in optimizer.param_groups:
+            p["lr"] = lr * lr_factor
+
         optimizer.zero_grad()
         x1 = x1.to(device)
         x2 = x2.to(device)
@@ -76,6 +87,9 @@ def train_epoch(epoch, loss_function, model, optimizer, train_loader, device):
         train_loss.update(loss.item())
         loss.backward()
         optimizer.step()
+
+
+
         y_pred = y_pred.argmax(dim=-1).view(-1)
         y = y.view(-1)
         train_correct += (y == y_pred).sum()
@@ -164,7 +178,7 @@ def main():
     parser.add_argument("--vocab_file", type=str, help="The WordPiece model file", required=True)
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
-    parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
     parser.add_argument("--ckpt_base", type=str, default='ckpt-')
     parser.add_argument("--num_epochs", type=int, default=1)
     parser.add_argument("--label_names", type=str, nargs="+", default=["contradiction", "neutral", "entailment"])
@@ -204,7 +218,7 @@ def main():
 
     device = args.device
     for epoch in range(args.num_epochs):
-        train_epoch(epoch, loss_function, model, optimizer, train_loader, device)
+        train_epoch(args.lr, epoch, loss_function, model, optimizer, train_loader, device)
 
         valid_acc_fract = valid_epoch(epoch, loss_function, model, valid_loader, device)
         # Early stopping check
