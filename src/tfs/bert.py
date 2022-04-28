@@ -286,6 +286,32 @@ class TransformerMLM(TransformerEncoder):
 
 
 class SentenceBert(TransformerPooledEncoder):
+    """Implements a dual-encoder to derive embeddings that can be compared with cosine distance
+
+    This class implements the dual-encoders described in Sentence-BERT: Sentence
+    Embeddings using Siamese BERT-Networks (https://aclanthology.org/D19-1410.pdf)
+
+    While BERT encoders support full self attention for a pair of sentences presented as
+    a single sequence, this would be too slow for any information retrieval task.
+
+    If we use the BERT encoder instead to encode each sentence separately, we can
+    get two representations, allowing us to decouple this pairing, but the resultant embeddings
+    are not very good for cosine distance comparison necessary for accurate search.
+
+    A simple solution, and the one employed by SentenceBERT is to train on a corpus
+    that directly attempts to train and test for semantic similarity.  The so-called
+    Natural Language Inference datasets, present pairwise sentences, with a label
+    (usually "contradiction" (-1) if the 2 sentences are contradictary,
+    "neutral" (0) if they do no contradict nor agree, or "entailment" of they agree).
+
+    In this approach, both inputs are fed through the same Transformer up until the
+    final hidden layer, and then both mean-pooled hidden layers
+    plus the absolute difference between the two layers are presented as inputs
+    to the ultimate layer, which must then
+    project to the number of labels (typically 3 as mentioned above).
+
+    At inference time, we can simply use the mean pooled embeddings for comparison
+    """
     def __init__(
         self,
         vocab_size: int,
@@ -336,8 +362,8 @@ class SentenceBert(TransformerPooledEncoder):
         :param mask_x1: An optional mask to take in for attention for the second text
         :return:
         """
-        enc1 = super().forward(x1, mask_x1, torch.zeros_like(x1))
-        enc2 = super().forward(x1, mask_x2, torch.ones_like(x2))
+        enc1 = super().forward(x1, mask_x1)
+        enc2 = super().forward(x1, mask_x2)
 
         diff_enc = torch.abs(enc1 - enc2)
         encoded = torch.cat([enc1, enc2, diff_enc], -1)

@@ -166,7 +166,7 @@ def main():
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
     parser.add_argument("--ckpt_base", type=str, default='ckpt-')
-    parser.add_argument("--num_epochs", type=int, default=5)
+    parser.add_argument("--num_epochs", type=int, default=1)
     parser.add_argument("--label_names", type=str, nargs="+", default=["contradiction", "neutral", "entailment"])
     parser.add_argument("--col_names", type=str, nargs="+", default=["label", "sentence1", "sentence2"])
     parser.add_argument(
