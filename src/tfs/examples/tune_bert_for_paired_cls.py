@@ -33,6 +33,7 @@ If there is a `test_file` provided in the args, we will run an evaluation on our
 
 """
 
+
 def valid_epoch(epoch, loss_function, model, valid_loader, device, phase="valid"):
     model.eval()
     valid_loss = Average('valid_loss')
@@ -74,7 +75,7 @@ def train_epoch(lr, epoch, loss_function, model, optimizer, train_loader, device
 
     for i, (x1, x2, y) in progress:
 
-        lr_factor = min(1.0, (i+1) / warmup_steps)
+        lr_factor = min(1.0, (i + 1) / warmup_steps)
         for p in optimizer.param_groups:
             p["lr"] = lr * lr_factor
 
@@ -96,6 +97,7 @@ def train_epoch(lr, epoch, loss_function, model, optimizer, train_loader, device
             f"train epoch {epoch + 1}, step {i}: loss {train_loss.avg:.3f}, accuracy {train_acc:.2f}%"
         )
 
+
 def read_jsonl_paired_cls_dataset(
         file: str,
         tokenizer,
@@ -104,25 +106,26 @@ def read_jsonl_paired_cls_dataset(
         cols: Optional[List[str]] = None,
         label_list: Optional[List[str]] = None,
 ) -> TensorDataset:
-
     if cols is None:
         cols = ["label", "sentence1", "sentence2"]
     if label_list is None:
         label_list = ["contradiction", "neutral", "entailment"]
 
     label2index = {} if not label_list else {k: i for i, k in enumerate(label_list)}
+
     def read_line(l):
         obj = json.loads(l)
         label = label2index[obj[cols[0]]]
-        tokens = [torch.tensor(tokenizer.encode(obj[cols[1]]).ids), torch.tensor(tokenizer.encode(obj[cols[2]]).ids)]
+        tokens = [torch.tensor(tokenizer.encode(obj[cols[1]]).ids)[:max_seq_len],
+                  torch.tensor(tokenizer.encode(obj[cols[2]]).ids)[:max_seq_len]]
         padded = [torch.full((max_seq_len,), pad_index, dtype=tokens[0].dtype)] * 2
         padded[0][: len(tokens[0])] = tokens[0]
         padded[1][: len(tokens[1])] = tokens[1]
         return padded + [label]
 
-
     if os.path.exists(file + ".x1.th") and os.path.exists(file + ".x2.th") and os.path.exists(file + ".y.th"):
-        logger.info("Found cached tensor files, reloading.  If you dont want this, delete *.th from %s", os.path.dirname(file))
+        logger.info("Found cached tensor files, reloading.  If you dont want this, delete *.th from %s",
+                    os.path.dirname(file))
         x1_tensor = torch.load(file + ".x1.th")
         x2_tensor = torch.load(file + ".x2.th")
         y_tensor = torch.load(file + ".y.th")
@@ -187,7 +190,8 @@ def main():
     logging.basicConfig(level=logging.INFO)
     tokenizer = BertWordPieceTokenizer(args.vocab_file, lowercase=args.lowercase)
     # TODO: read the pad_index in
-    train_set, labels = read_jsonl_paired_cls_dataset(args.train_file, tokenizer, pad_index=0, max_seq_len=args.max_seq_len,
+    train_set, labels = read_jsonl_paired_cls_dataset(args.train_file, tokenizer, pad_index=0,
+                                                      max_seq_len=args.max_seq_len,
                                                       cols=args.col_names, label_list=args.label_names)
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, collate_fn=trim_to_shortest_len
