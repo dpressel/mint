@@ -27,10 +27,6 @@ is performed for each channel, yielding a fixed width vector for each.  The mode
 vector, are they entailment, contradiction or neutral.  This will yield a model that can be used for distance
 queries.
 
-Unlike our simple classification example, we know that the typical NLI datasets (SNLI, MNLI) are large enough that
-it would be best to overlap the IO, so we will use our builtin library trainer rather than the simple inline trainer
-presented in those examples.
-
 Early stopping is performed on the dataset in order to determine the best checkpoint.
 
 If there is a `test_file` provided in the args, we will run an evaluation on our best checkpoint.
