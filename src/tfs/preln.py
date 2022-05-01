@@ -30,7 +30,7 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         layer_norm_eps: float = 1e-12,
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
-        layer_factory = None,
+        layer_factory=None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -107,7 +107,7 @@ class PreLayerNormTransformerEncoder(nn.Module):
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
         max_seq_len: int = 512,
-        layer_factory = None,
+        layer_factory=None,
     ):
         """Set up initialization for a (pre-layer-norm) Transformer
 
@@ -131,7 +131,13 @@ class PreLayerNormTransformerEncoder(nn.Module):
         self.encoder = nn.ModuleList(
             [
                 PreLayerNormTransformerEncoderLayer(
-                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory,
+                    hidden_size,
+                    num_heads,
+                    dropout,
+                    layer_norm_eps,
+                    activation,
+                    feed_forward_size,
+                    layer_factory,
                 )
                 for _ in range(num_layers)
             ]
@@ -211,14 +217,14 @@ class PreLayerNormTransformerDecoderLayer(nn.Module):
     """
 
     def __init__(
-            self,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            dropout: float = 0.1,
-            layer_norm_eps: float = 1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            layer_factory = None,
+        self,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        layer_factory=None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -256,11 +262,11 @@ class PreLayerNormTransformerDecoderLayer(nn.Module):
         return nn.functional.dropout(x, self.dropout) if self.training else x
 
     def forward(
-            self,
-            src: torch.Tensor,
-            dst: torch.Tensor,
-            src_mask: Optional[torch.Tensor] = None,
-            dst_mask: Optional[torch.Tensor] = None,
+        self,
+        src: torch.Tensor,
+        dst: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
     ):
         """Pass an x tensor and optional mask through the transformer layer
 
@@ -292,20 +298,20 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
     """
 
     def __init__(
-            self,
-            EmbeddingClass: Callable,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_encoder_layers: int = 6,
-            num_decoder_layers: int = 6,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 512,
-            layer_factory = None,
+        self,
+        EmbeddingClass: Callable,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
+        layer_factory=None,
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -336,13 +342,17 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
 
         self.encoder = nn.ModuleList(
             [
-                PreLayerNormTransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory)
+                PreLayerNormTransformerEncoderLayer(
+                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                )
                 for _ in range(num_encoder_layers)
             ]
         )
         self.decoder = nn.ModuleList(
             [
-                PreLayerNormTransformerDecoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory)
+                PreLayerNormTransformerDecoderLayer(
+                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                )
                 for _ in range(num_decoder_layers)
             ]
         )
@@ -358,9 +368,9 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
                     dtype=torch.uint8,
                 )
             )
-                .unsqueeze(0)
-                .unsqueeze(0),
-                )
+            .unsqueeze(0)
+            .unsqueeze(0),
+        )
         self.LayerNormImpl = layer_factory.layer_norm
         self.encoder_layer_norm = self.LayerNormImpl(hidden_size, layer_norm_eps)
         self.decoder_layer_norm = self.LayerNormImpl(hidden_size, layer_norm_eps)
@@ -396,7 +406,13 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
         src_enc = self.encoder_layer_norm(src_enc)
         return src_enc
 
-    def decode(self, src_enc: torch.Tensor, dst: torch.Tensor, src_mask: Optional[torch.Tensor] = None, dst_mask: Optional[torch.Tensor] = None):
+    def decode(
+        self,
+        src_enc: torch.Tensor,
+        dst: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
+    ):
         futures_mask = self.causal_mask[:, :, : dst.shape[1], : dst.shape[1]]
         if dst_mask is not None:
             futures_mask = dst_mask & futures_mask.to(dtype=torch.bool)
@@ -407,11 +423,11 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
         return dst_enc
 
     def forward(
-            self,
-            src: torch.Tensor,
-            dst: torch.Tensor,
-            src_mask: Optional[torch.Tensor] = None,
-            dst_mask: Optional[torch.Tensor] = None,
+        self,
+        src: torch.Tensor,
+        dst: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
 
@@ -441,21 +457,20 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
 
 class PreLayerNormTransformerSequenceGenerator(PreLayerNormTransformerEncoderDecoder):
     def __init__(
-            self,
-            EmbeddingClass: Callable,
-            vocab_size: int,
-            padding_idx: int = 0,
-            hidden_size: int = 768,
-            num_heads: int = 12,
-            num_encoder_layers: int = 6,
-            num_decoder_layers: int = 6,
-            dropout: float = 0.1,
-            layer_norm_eps=1e-12,
-            activation: nn.Module = nn.GELU(),
-            feed_forward_size: Optional[int] = None,
-            max_seq_len: int = 1024,
-            layer_factory = None,
-
+        self,
+        EmbeddingClass: Callable,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dropout: float = 0.1,
+        layer_norm_eps=1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 1024,
+        layer_factory=None,
     ):
         super().__init__(
             EmbeddingClass,
@@ -476,15 +491,12 @@ class PreLayerNormTransformerSequenceGenerator(PreLayerNormTransformerEncoderDec
         self.apply(self.init_layer_weights)
 
     def decode(
-            self,
-            src_enc: torch.Tensor,
-            dst: torch.Tensor,
-            src_mask: Optional[torch.Tensor] = None,
-            dst_mask: Optional[torch.Tensor] = None,
+        self,
+        src_enc: torch.Tensor,
+        dst: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         dst_enc = super().decode(src_enc, dst, src_mask, dst_mask)
         y = self.output_proj(dst_enc)
         return y
-
-
-

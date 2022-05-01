@@ -76,7 +76,9 @@ class SingleDeviceTrainer:
         self.plateau_fract = plateau_fract
         self.alpha = alpha_decay
         self.model = model
-        self.loss_function = model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
+        self.loss_function = (
+            model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
+        )
         self.device = 'cpu'
         self.num_train_workers = num_train_workers
         self.num_valid_workers = num_valid_workers
@@ -544,7 +546,9 @@ class DistributedTrainer:
         self.plateau_fract = plateau_fract
         self.alpha = alpha_decay
         self.model = model
-        self.loss_function = model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
+        self.loss_function = (
+            model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
+        )
         self.device = 'cpu'
         self.num_train_workers = num_train_workers
         self.num_valid_workers = num_valid_workers
@@ -870,9 +874,7 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
         return loss.item()
 
 
-
 class SingleDeviceNLITrainer(SingleDeviceTrainer):
-
     def _train_step(self, batch):
         x1, x2, y = batch
         x1 = x1.to(device=self.device)

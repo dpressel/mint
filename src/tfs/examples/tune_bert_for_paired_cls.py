@@ -74,7 +74,7 @@ class PairedTextTrainer:
 
         warmup_steps = 1
         if self.epoch == 0:
-            warmup_steps = int(.1 * len(train_loader))
+            warmup_steps = int(0.1 * len(train_loader))
             logger.info("Warmup steps %d", warmup_steps)
         progress = tqdm(enumerate(train_loader), total=len(train_loader))
         train_correct = 0
@@ -102,7 +102,6 @@ class PairedTextTrainer:
 
 
 class DualEncoderTrainer(PairedTextTrainer):
-
     def train_step(self, batch):
         (x1, x2, y) = batch
         x1 = x1.to(self.device)
@@ -123,7 +122,6 @@ class DualEncoderTrainer(PairedTextTrainer):
 
 
 class CrossEncoderTrainer(PairedTextTrainer):
-
     def train_step(self, batch):
         (x, tt, y) = batch
         x = x.to(self.device)
@@ -144,12 +142,12 @@ class CrossEncoderTrainer(PairedTextTrainer):
 
 
 def read_jsonl_dual_cls_dataset(
-        file: str,
-        tokenizer,
-        pad_index=0,
-        max_seq_len=512,
-        cols: Optional[List[str]] = None,
-        label_list: Optional[List[str]] = None,
+    file: str,
+    tokenizer,
+    pad_index=0,
+    max_seq_len=512,
+    cols: Optional[List[str]] = None,
+    label_list: Optional[List[str]] = None,
 ) -> TensorDataset:
     if cols is None:
         cols = ["label", "sentence1", "sentence2"]
@@ -161,16 +159,19 @@ def read_jsonl_dual_cls_dataset(
     def read_line(l):
         obj = json.loads(l)
         label = label2index[obj[cols[0]]]
-        tokens = [torch.tensor(tokenizer.encode(obj[cols[1]]).ids)[:max_seq_len],
-                  torch.tensor(tokenizer.encode(obj[cols[2]]).ids)[:max_seq_len]]
+        tokens = [
+            torch.tensor(tokenizer.encode(obj[cols[1]]).ids)[:max_seq_len],
+            torch.tensor(tokenizer.encode(obj[cols[2]]).ids)[:max_seq_len],
+        ]
         padded = [torch.full((max_seq_len,), pad_index, dtype=tokens[0].dtype)] * 2
         padded[0][: len(tokens[0])] = tokens[0]
         padded[1][: len(tokens[1])] = tokens[1]
         return padded + [label]
 
     if os.path.exists(file + ".x1.th") and os.path.exists(file + ".x2.th") and os.path.exists(file + ".y.th"):
-        logger.info("Found cached tensor files, reloading.  If you dont want this, delete *.th from %s",
-                    os.path.dirname(file))
+        logger.info(
+            "Found cached tensor files, reloading.  If you dont want this, delete *.th from %s", os.path.dirname(file)
+        )
         x1_tensor = torch.load(file + ".x1.th")
         x2_tensor = torch.load(file + ".x2.th")
         y_tensor = torch.load(file + ".y.th")
@@ -197,12 +198,12 @@ def read_jsonl_dual_cls_dataset(
 
 
 def read_jsonl_cross_cls_dataset(
-        file: str,
-        tokenizer,
-        pad_index=0,
-        max_seq_len=512,
-        cols: Optional[List[str]] = None,
-        label_list: Optional[List[str]] = None,
+    file: str,
+    tokenizer,
+    pad_index=0,
+    max_seq_len=512,
+    cols: Optional[List[str]] = None,
+    label_list: Optional[List[str]] = None,
 ) -> TensorDataset:
     if cols is None:
         cols = ["label", "sentence1", "sentence2"]
@@ -221,13 +222,14 @@ def read_jsonl_cross_cls_dataset(
         # The output is going to look like [CLS] t1 [SEP] t2 [SEP]
         padded = torch.full((max_seq_len,), pad_index, dtype=tokens[0].dtype)
         tt = torch.ones_like(padded)
-        tt[:len(x1_tt)] = x1_tt
+        tt[: len(x1_tt)] = x1_tt
         padded[: len(tokens)] = tokens
         return [padded, tt] + [label]
 
     if os.path.exists(file + ".x.th") and os.path.exists(file + ".x.th") and os.path.exists(file + ".y.th"):
-        logger.info("Found cached tensor files, reloading.  If you dont want this, delete *.th from %s",
-                    os.path.dirname(file))
+        logger.info(
+            "Found cached tensor files, reloading.  If you dont want this, delete *.th from %s", os.path.dirname(file)
+        )
         x_tensor = torch.load(file + ".x.th")
         tt_tensor = torch.load(file + ".tt.th")
         y_tensor = torch.load(file + ".y.th")
@@ -286,8 +288,12 @@ def main():
     parser.add_argument("--num_valid_workers", type=int, default=1, help="Number train workers")
     parser.add_argument("--max_seq_len", type=int, default=512, help="Max input length")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch Size")
-    parser.add_argument("--encoder_type", choices=["cross-encoder", "dual-encoder"], default="dual-encoder",
-                        help="Train a dual-encoder or a cross-encoder")
+    parser.add_argument(
+        "--encoder_type",
+        choices=["cross-encoder", "dual-encoder"],
+        default="dual-encoder",
+        help="Train a dual-encoder or a cross-encoder",
+    )
     parser.add_argument("--vocab_file", type=str, help="The WordPiece model file", required=True)
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
@@ -311,8 +317,14 @@ def main():
         trim_batch_fn = trim_to_shortest_len_cross
         read_fn = read_jsonl_cross_cls_dataset
 
-    train_set, labels = read_fn(args.train_file, tokenizer, pad_index=0, max_seq_len=args.max_seq_len,
-                                cols=args.col_names, label_list=args.label_names)
+    train_set, labels = read_fn(
+        args.train_file,
+        tokenizer,
+        pad_index=0,
+        max_seq_len=args.max_seq_len,
+        cols=args.col_names,
+        label_list=args.label_names,
+    )
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, collate_fn=trim_batch_fn
     )
@@ -332,7 +344,8 @@ def main():
     loss_function = torch.nn.CrossEntropyLoss().to(args.device)
     if args.encoder_type == "dual-encoder":
         model = BertCreator.dual_encoder_from_pretrained(args.model, num_classes=num_classes, **vars(args)).to(
-            args.device)
+            args.device
+        )
         trainer = DualEncoderTrainer(model, loss_function, args.device, args.lr)
     else:
         num_classes = len(labels)
@@ -341,8 +354,6 @@ def main():
         trainer = CrossEncoderTrainer(model, loss_function, args.device, args.lr)
 
     best_valid_acc = 0.0
-
-    device = args.device
 
     checkpoint_name = args.ckpt_base + '.pth'
     for epoch in range(args.num_epochs):

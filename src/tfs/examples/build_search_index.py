@@ -17,7 +17,7 @@ def padded_batch(seqs: List[torch.Tensor]) -> torch.Tensor:
     max_batch_len = max([len(seq) for seq in seqs])
     pad_batch = torch.zeros((len(seqs), max_batch_len), dtype=torch.long)
     for i, seq in enumerate(seqs):
-        pad_batch[i, :len(seq)] = torch.tensor(seq, dtype=torch.long)
+        pad_batch[i, : len(seq)] = torch.tensor(seq, dtype=torch.long)
     return pad_batch
 
 
@@ -73,19 +73,25 @@ def main():
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
     parser.add_argument("--file_type", type=str, choices=["tsv", "txt", "jsonl"], default="txt")
     parser.add_argument("--column", type=str, default="0")
-    parser.add_argument("--has_header", action="store_true", help="The file has a header line that must be skipped (or used)")
+    parser.add_argument(
+        "--has_header", action="store_true", help="The file has a header line that must be skipped (or used)"
+    )
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)"
     )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     tokenizer = BertWordPieceTokenizer(args.vocab_file, lowercase=args.lowercase)
-    embedder = BertCreator.pooled_enc_from_pretrained(args.model, use_mlp_layer=False, **vars(args)).eval().to(args.device)
+    embedder = (
+        BertCreator.pooled_enc_from_pretrained(args.model, use_mlp_layer=False, **vars(args)).eval().to(args.device)
+    )
 
     all_embeddings = []
     all_texts = []
     with torch.no_grad():
-        for (batch, texts) in read_batch(args.input, args.file_type, args.column, args.has_header, args.batch_size, tokenizer, args.max_seq_len):
+        for (batch, texts) in read_batch(
+            args.input, args.file_type, args.column, args.has_header, args.batch_size, tokenizer, args.max_seq_len
+        ):
             batch = batch.to(device=args.device)
             embedded_batch = embedder(batch, embedder.create_pad_mask(batch)).cpu().numpy()
             all_embeddings.append(embedded_batch)
@@ -95,6 +101,7 @@ def main():
     index = faiss.IndexFlatL2(args.hidden_size)
     index.add(all_embeddings)
     faiss.write_index(index, args.index + ".index")
+
 
 if __name__ == '__main__':
     main()

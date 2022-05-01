@@ -312,6 +312,7 @@ class SentenceBert(TransformerPooledEncoder):
 
     At inference time, we can simply use the mean pooled embeddings for comparison
     """
+
     def __init__(
         self,
         vocab_size: int,

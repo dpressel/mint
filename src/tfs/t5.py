@@ -7,6 +7,7 @@ from tfs.preln import PreLayerNormTransformerSequenceGenerator
 import logging
 import numpy as np
 import re
+
 logger = logging.getLogger('tfs')
 
 
@@ -29,9 +30,9 @@ def _relative_position_bucket(relative_position, is_bidirectional, num_buckets, 
     max_exact = num_buckets // 2
     is_small = relative_position < max_exact
     relative_postion_if_large = max_exact + (
-            torch.log(relative_position.float() / max_exact)
-            / math.log(max_distance / max_exact)
-            * (num_buckets - max_exact)
+        torch.log(relative_position.float() / max_exact)
+        / math.log(max_distance / max_exact)
+        * (num_buckets - max_exact)
     ).to(torch.long)
     relative_postion_if_large = torch.min(
         relative_postion_if_large, torch.full_like(relative_postion_if_large, num_buckets - 1)
@@ -42,17 +43,17 @@ def _relative_position_bucket(relative_position, is_bidirectional, num_buckets, 
 
 
 class SharedRelativeAttentionBias(nn.Module):
-    """T5 relative embedding implementation
+    """T5 relative embedding implementation"""
 
-    """
     def __init__(self, num_heads, is_bidirectional):
         super().__init__()
         self.num_heads = num_heads
         self.num_buckets = 32
         self.max_distance = 128
         self.is_bidirectional = is_bidirectional
-        rel_embedding = torch.nn.init.kaiming_normal_(torch.empty((self.num_heads, self.num_buckets),
-                                                                  dtype=torch.float), nonlinearity='linear')
+        rel_embedding = torch.nn.init.kaiming_normal_(
+            torch.empty((self.num_heads, self.num_buckets), dtype=torch.float), nonlinearity='linear'
+        )
 
         self.relative_attention_bias = nn.Parameter(rel_embedding, requires_grad=True)
 
@@ -67,7 +68,9 @@ class SharedRelativeAttentionBias(nn.Module):
         query_position = torch.arange(T_q).view(-1, 1)
         relative_position = memory_position - query_position
 
-        rp_bucket = _relative_position_bucket(relative_position, self.is_bidirectional, self.num_buckets, self.max_distance)
+        rp_bucket = _relative_position_bucket(
+            relative_position, self.is_bidirectional, self.num_buckets, self.max_distance
+        )
         relative_attention_bias = self.relative_attention_bias[:, rp_bucket]
         return relative_attention_bias
 
@@ -118,7 +121,7 @@ class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
         value_vec = self.value(src).view(B, T_k, self.num_heads, -1).transpose(1, 2)
 
         # [B, H, T_q, D] x [B, H, D, T_k] = [B, H, T_q, T_k]
-        dot_prod = (query_vec @ key_vec.transpose(-1, -2))
+        dot_prod = query_vec @ key_vec.transpose(-1, -2)
         relative_attention_bias = self.relative_attention_bias(T_k, T_q)
         dot_prod += relative_attention_bias
 
@@ -134,7 +137,9 @@ class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
 
 
 class MultiHeadedRelativeAttentionBias(nn.Module):
-    def __init__(self, hidden_size: int, num_heads: int, relative_attention_bias: SharedRelativeAttentionBias): #num_buckets: int = 32, max_distance: int = 128):
+    def __init__(
+        self, hidden_size: int, num_heads: int, relative_attention_bias: SharedRelativeAttentionBias
+    ):  # num_buckets: int = 32, max_distance: int = 128):
         """Each block has the same hidden unit size (`d_model` in the paper).  Must be a multiple of num heads
 
         :param hidden_size: The number of units (both input and output) of the MHA block
@@ -170,7 +175,7 @@ class MultiHeadedRelativeAttentionBias(nn.Module):
         value_vec = self.value(x).view(B, T, self.num_heads, -1).transpose(1, 2)
 
         # [B, H, T_q, D] x [B, H, D, T_k] = [B, H, T_q, T_k]
-        dot_prod = (query_vec @ key_vec.transpose(-1, -2))
+        dot_prod = query_vec @ key_vec.transpose(-1, -2)
         dot_prod += self.relative_attention_bias(T, T)
 
         if mask is not None:
@@ -185,7 +190,7 @@ class MultiHeadedRelativeAttentionBias(nn.Module):
 
 
 def create_feed_forward_layer_no_bias(
-        hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.ReLU()
+    hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.ReLU()
 ):
     """Create a feed-forward layer (called FFN in the paper)
 
@@ -214,6 +219,7 @@ class LayerNormWithoutAdditiveBias(nn.Module):
     http://adrianboeing.blogspot.com/2009/10/timing-square-root-on-gpu.html
 
     """
+
     def __init__(self, hidden_dim: int, eps: float = 1e-12):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_dim))
@@ -280,12 +286,14 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
         enc_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, True)
         dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
         enc_dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
+
         class LayerFactory:
 
             _instance = None
+
             @staticmethod
             def get_instance():
-                """ Static access method. """
+                """Static access method."""
                 if LayerFactory._instance is None:
                     LayerFactory()
 
@@ -295,12 +303,19 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
                 if LayerFactory._instance is not None:
                     raise Exception("Singleton constructor call.  Expected no definition")
 
-                self.encoder_multihead_attention = lambda x, y: MultiHeadedRelativeAttentionBias(x, y, enc_shared_relative_attention_bias)
-                self.decoder_multihead_attention = lambda x, y: MultiHeadedRelativeAttentionBias(x, y, dec_shared_relative_attention_bias)
-                self.encoder_decoder_attention = lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(x, y, enc_dec_shared_relative_attention_bias)
+                self.encoder_multihead_attention = lambda x, y: MultiHeadedRelativeAttentionBias(
+                    x, y, enc_shared_relative_attention_bias
+                )
+                self.decoder_multihead_attention = lambda x, y: MultiHeadedRelativeAttentionBias(
+                    x, y, dec_shared_relative_attention_bias
+                )
+                self.encoder_decoder_attention = lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(
+                    x, y, enc_dec_shared_relative_attention_bias
+                )
                 self.layer_norm = LayerNormWithoutAdditiveBias
                 self.feed_forward = create_feed_forward_layer_no_bias
                 LayerFactory._instance = self
+
         super().__init__(
             WordOnlyEmbedding,
             vocab_size,
@@ -362,34 +377,93 @@ class T5Creator:
                 t5_state_dict[field_name] = t5_state_dict[field_name].T
 
             new_field_name = field_name.replace('shared.weight', 'encoder_embeddings.word_embeddings.weight')
-            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.k.weight', r'\1coder.\2.self_attention.key.weight', new_field_name)
-            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.q.weight', r'\1coder.\2.self_attention.query.weight', new_field_name)
-            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.v.weight', r'\1coder.\2.self_attention.value.weight', new_field_name)
-            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.SelfAttention.o.weight', r'\1coder.\2.self_attention.output.weight', new_field_name)
-            new_field_name = re.sub(r'(en|de)coder.block.(\d+).layer.0.layer_norm.weight', r'\1coder.\2.self_attention_layer_norm.weight', new_field_name)
+            new_field_name = re.sub(
+                r'(en|de)coder.block.(\d+).layer.0.SelfAttention.k.weight',
+                r'\1coder.\2.self_attention.key.weight',
+                new_field_name,
+            )
+            new_field_name = re.sub(
+                r'(en|de)coder.block.(\d+).layer.0.SelfAttention.q.weight',
+                r'\1coder.\2.self_attention.query.weight',
+                new_field_name,
+            )
+            new_field_name = re.sub(
+                r'(en|de)coder.block.(\d+).layer.0.SelfAttention.v.weight',
+                r'\1coder.\2.self_attention.value.weight',
+                new_field_name,
+            )
+            new_field_name = re.sub(
+                r'(en|de)coder.block.(\d+).layer.0.SelfAttention.o.weight',
+                r'\1coder.\2.self_attention.output.weight',
+                new_field_name,
+            )
+            new_field_name = re.sub(
+                r'(en|de)coder.block.(\d+).layer.0.layer_norm.weight',
+                r'\1coder.\2.self_attention_layer_norm.weight',
+                new_field_name,
+            )
             # For encoder block, FFN is 1
-            new_field_name = re.sub(r'encoder.block.(\d+).layer.1.DenseReluDense.wi.weight', r'encoder.\1.ffn.0.weight', new_field_name)
-            new_field_name = re.sub(r'encoder.block.(\d+).layer.1.DenseReluDense.wo.weight', r'encoder.\1.ffn.2.weight', new_field_name)
-            new_field_name = re.sub(r'encoder.block.(\d+).layer.1.layer_norm.weight', r'encoder.\1.output_layer_norm.weight', new_field_name)
+            new_field_name = re.sub(
+                r'encoder.block.(\d+).layer.1.DenseReluDense.wi.weight', r'encoder.\1.ffn.0.weight', new_field_name
+            )
+            new_field_name = re.sub(
+                r'encoder.block.(\d+).layer.1.DenseReluDense.wo.weight', r'encoder.\1.ffn.2.weight', new_field_name
+            )
+            new_field_name = re.sub(
+                r'encoder.block.(\d+).layer.1.layer_norm.weight', r'encoder.\1.output_layer_norm.weight', new_field_name
+            )
             # For decoder block, FFN is 2
-            new_field_name = re.sub(r'decoder.block.(\d+).layer.2.DenseReluDense.wi.weight', r'decoder.\1.ffn.0.weight', new_field_name)
-            new_field_name = re.sub(r'decoder.block.(\d+).layer.2.DenseReluDense.wo.weight', r'decoder.\1.ffn.2.weight', new_field_name)
-            new_field_name = re.sub(r'decoder.block.(\d+).layer.2.layer_norm.weight', r'decoder.\1.output_layer_norm.weight', new_field_name)
+            new_field_name = re.sub(
+                r'decoder.block.(\d+).layer.2.DenseReluDense.wi.weight', r'decoder.\1.ffn.0.weight', new_field_name
+            )
+            new_field_name = re.sub(
+                r'decoder.block.(\d+).layer.2.DenseReluDense.wo.weight', r'decoder.\1.ffn.2.weight', new_field_name
+            )
+            new_field_name = re.sub(
+                r'decoder.block.(\d+).layer.2.layer_norm.weight', r'decoder.\1.output_layer_norm.weight', new_field_name
+            )
 
             # For decoder block, encoder-decoder attention is 1:
-            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.EncDecAttention.k.weight', r'decoder.\1.encoder_attention.key.weight', new_field_name)
-            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.EncDecAttention.q.weight', r'decoder.\1.encoder_attention.query.weight', new_field_name)
-            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.EncDecAttention.v.weight', r'decoder.\1.encoder_attention.value.weight', new_field_name)
-            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.EncDecAttention.o.weight', r'decoder.\1.encoder_attention.output.weight', new_field_name)
-            new_field_name = re.sub(r'decoder.block.(\d+).layer.1.layer_norm.weight', r'decoder.\1.encoder_attention_layer_norm.weight', new_field_name)
+            new_field_name = re.sub(
+                r'decoder.block.(\d+).layer.1.EncDecAttention.k.weight',
+                r'decoder.\1.encoder_attention.key.weight',
+                new_field_name,
+            )
+            new_field_name = re.sub(
+                r'decoder.block.(\d+).layer.1.EncDecAttention.q.weight',
+                r'decoder.\1.encoder_attention.query.weight',
+                new_field_name,
+            )
+            new_field_name = re.sub(
+                r'decoder.block.(\d+).layer.1.EncDecAttention.v.weight',
+                r'decoder.\1.encoder_attention.value.weight',
+                new_field_name,
+            )
+            new_field_name = re.sub(
+                r'decoder.block.(\d+).layer.1.EncDecAttention.o.weight',
+                r'decoder.\1.encoder_attention.output.weight',
+                new_field_name,
+            )
+            new_field_name = re.sub(
+                r'decoder.block.(\d+).layer.1.layer_norm.weight',
+                r'decoder.\1.encoder_attention_layer_norm.weight',
+                new_field_name,
+            )
             new_field_name = new_field_name.replace('encoder.final_layer_norm', 'encoder_layer_norm')
             new_field_name = new_field_name.replace('decoder.final_layer_norm', 'decoder_layer_norm')
 
-            new_field_name = new_field_name.replace('encoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight', 'enc_shared_relative_attention_bias.relative_attention_bias')
-            new_field_name = new_field_name.replace('decoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight', 'dec_shared_relative_attention_bias.relative_attention_bias')
-            new_field_name = new_field_name.replace('decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight', 'enc_dec_shared_relative_attention_bias.relative_attention_bias')
-
-
+            new_field_name = new_field_name.replace(
+                'encoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight',
+                'enc_shared_relative_attention_bias.relative_attention_bias',
+            )
+            new_field_name = new_field_name.replace(
+                'decoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight',
+                'dec_shared_relative_attention_bias.relative_attention_bias',
+            )
+            new_field_name = new_field_name.replace(
+                'decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight',
+                'enc_dec_shared_relative_attention_bias.relative_attention_bias',
+            )
 
             if new_field_name in tlm_field_names:
                 tlm_field_names.remove(new_field_name)
@@ -482,13 +556,25 @@ class NoisingCollator:
             noised.append(torch.from_numpy(x_noise))
             denoised.append(torch.from_numpy(x_recon))
 
-        x = torch.zeros((len(noised), max_x,), dtype=torch.long)
-        y = torch.zeros((len(denoised), max_y,), dtype=torch.long)
+        x = torch.zeros(
+            (
+                len(noised),
+                max_x,
+            ),
+            dtype=torch.long,
+        )
+        y = torch.zeros(
+            (
+                len(denoised),
+                max_y,
+            ),
+            dtype=torch.long,
+        )
 
         for i in range(len(noised)):
             noised[i] = noised[i][:max_x]
             denoised[i] = denoised[i][:max_y]
-            x[i, :len(noised[i])] = noised[i]
-            y[i, :len(denoised[i])] = denoised[i]
+            x[i, : len(noised[i])] = noised[i]
+            y[i, : len(denoised[i])] = denoised[i]
 
         return x, y
