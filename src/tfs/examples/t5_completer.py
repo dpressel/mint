@@ -38,6 +38,7 @@ def main():
     model.to(args.device)
 
     EOS_ID = tokenizer.get_vocab().get('</s>')
+
     def complete(query, sampling, temperature, decode_as_text=True):
         logger.info("Query: %s", query)
         tokenized_input = tokenizer.encode(query)

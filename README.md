@@ -24,6 +24,7 @@ builds on the previous one, so they should be done in order.
 - [GPT & GPT2 from scratch](https://colab.research.google.com/drive/1svaeO-TF1UEEIq8aew4B5x-y4i79fIXv?usp=sharing)
 - [BART from scratch](https://colab.research.google.com/drive/12C764uTLwPMM9hUlprm_a4bUwHz91a7P?usp=sharing)
 - [T5 from scratch](https://colab.research.google.com/drive/1G3egJjNRrXog-8reY1Ssfoa6c92Dp4jh?usp=sharing)
+- [Build your own SentenceBERT](https://colab.research.google.com/drive/1P11ogAYU-EZ_Kbo7WorMM7p35qvwPuMo?usp=sharing)
 
 The code here is factored out here as a python package for easy use outside of the tutorial.
 

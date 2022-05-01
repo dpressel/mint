@@ -161,10 +161,10 @@ def create_feed_forward_layer(
 
 
 class DefaultLayerFactory:
-    """Implements Transformer primitives using the basic defaults we have used so far
+    """Implements Transformer primitives using the basic defaults we have used so far"""
 
-    """
     _instance = None
+
     @staticmethod
     def get_instance():
         """Access the abstract factory pattern in this way

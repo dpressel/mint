@@ -71,6 +71,8 @@ class TransformerPooledEncoder(TransformerEncoder):
         feed_forward_size: Optional[int] = None,
         output: Optional[nn.Module] = None,
         max_seq_len: int = 512,
+        pool_type: str = 'cls',
+        use_mlp_layer: bool = True,
         **kwargs,
     ):
         """Set up initialization for a (post-layer-norm) Transformer with pooling output.  Defaults to bert-base settings
@@ -98,9 +100,27 @@ class TransformerPooledEncoder(TransformerEncoder):
             feed_forward_size,
             max_seq_len,
         )
-        self.pooler = nn.Linear(hidden_size, hidden_size)
+        self.pooler = nn.Linear(hidden_size, hidden_size) if use_mlp_layer else nn.Identity()
+        self.mlp_activation = torch.tanh if use_mlp_layer else nn.Identity()
+        self.pooling = self.zero_pool if pool_type == 'cls' else self.mean_pool
         self.output = output if output else nn.Identity()
         self.apply(self.init_layer_weights)
+
+    def zero_pool(self, _, embeddings):
+        """We could find the offset of [CLS] but thats slower than just finding the first entry
+
+        Also both RoBERTa and BERT use the 0 token for this, but they have different names, so this makes
+        it easier
+        :param y:
+        :return:
+        """
+        return embeddings[:, 0, :]
+
+    def mean_pool(self, inputs, embeddings):
+        mask = inputs != self.padding_idx
+        seq_lengths = mask.sum(1).float()
+        embeddings = embeddings.masked_fill(mask.unsqueeze(-1) == False, 0.0)
+        return embeddings.sum(1) / seq_lengths.unsqueeze(-1)
 
     def forward(
         self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
@@ -116,8 +136,8 @@ class TransformerPooledEncoder(TransformerEncoder):
         y = self.embeddings_layer_norm(y)
         for t in self.encoder:
             y = t(y, mask)
-        # TODO: not elegant
-        y = torch.tanh(self.pooler(y[:, 0, :]))
+        pooled = self.pooling(x, y)
+        y = self.mlp_activation(self.pooler(pooled))
         return self.output(y)
 
 
@@ -265,6 +285,92 @@ class TransformerMLM(TransformerEncoder):
         return self.output_layer(y)
 
 
+class SentenceBert(TransformerPooledEncoder):
+    """Implements a dual-encoder to derive embeddings that can be compared with cosine distance
+
+    This class implements the dual-encoders described in Sentence-BERT: Sentence
+    Embeddings using Siamese BERT-Networks (https://aclanthology.org/D19-1410.pdf)
+
+    While BERT encoders support full self attention for a pair of sentences presented as
+    a single sequence, this would be too slow for any information retrieval task.
+
+    If we use the BERT encoder instead to encode each sentence separately, we can
+    get two representations, allowing us to decouple this pairing, but the resultant embeddings
+    are not very good for cosine distance comparison necessary for accurate search.
+
+    A simple solution, and the one employed by SentenceBERT is to train on a corpus
+    that directly attempts to train and test for semantic similarity.  The so-called
+    Natural Language Inference datasets, present pairwise sentences, with a label
+    (usually "contradiction" (-1) if the 2 sentences are contradictary,
+    "neutral" (0) if they do no contradict nor agree, or "entailment" of they agree).
+
+    In this approach, both inputs are fed through the same Transformer up until the
+    final hidden layer, and then both mean-pooled hidden layers
+    plus the absolute difference between the two layers are presented as inputs
+    to the ultimate layer, which must then
+    project to the number of labels (typically 3 as mentioned above).
+
+    At inference time, we can simply use the mean pooled embeddings for comparison
+    """
+
+    def __init__(
+        self,
+        vocab_size: int,
+        padding_idx: int = 0,
+        hidden_size: int = 768,
+        num_heads: int = 12,
+        num_layers: int = 12,
+        dropout: float = 0.1,
+        layer_norm_eps: float = 1e-12,
+        activation: nn.Module = nn.GELU(),
+        feed_forward_size: Optional[int] = None,
+        max_seq_len: int = 512,
+        pool_type: str = 'mean',
+        use_mlp_layer: bool = False,
+        num_classes: int = 3,
+        **kwargs,
+    ):
+        super().__init__(
+            vocab_size,
+            padding_idx,
+            hidden_size,
+            num_heads,
+            num_layers,
+            dropout,
+            layer_norm_eps,
+            activation,
+            feed_forward_size,
+            None,
+            max_seq_len,
+            pool_type,
+            use_mlp_layer,
+            **kwargs,
+        )
+        self.output_dual = nn.Linear(3 * self.hidden_size, num_classes)
+
+    def forward(
+        self,
+        x1: torch.Tensor,
+        x2: torch.Tensor,
+        mask_x1: Optional[torch.Tensor] = None,
+        mask_x2: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Apply the encoder from the parent, followed by penultimate and output projection
+
+        :param x1: A one-hot (long) tensor of shape `[B, T]` representing the first text
+        :param x2: A one-hot (long) tensor of shape `[B, T]` representing the second text
+        :param mask_x1: An optional mask to take in for attention for the first text
+        :param mask_x1: An optional mask to take in for attention for the second text
+        :return:
+        """
+        enc1 = super().forward(x1, mask_x1)
+        enc2 = super().forward(x1, mask_x2)
+
+        diff_enc = torch.abs(enc1 - enc2)
+        encoded = torch.cat([enc1, enc2, diff_enc], -1)
+        return self.output_dual(encoded)
+
+
 class BertCreator:
     @classmethod
     def convert_state_dict(cls, tlm, bert_state_dict):
@@ -341,6 +447,20 @@ class BertCreator:
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BertCreator.get_vocab_and_hidden_dims(hf_dict)
         enc = TransformerPooledEncoder(vocab_size, **kwargs)
+        missing, unused = BertCreator.convert_state_dict(enc, hf_dict)
+        logging.info(f'Unset params: {missing}')
+        logging.info(f'Unused checkpoint fields: {unused}')
+        return enc
+
+    @classmethod
+    def dual_encoder_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+        if os.path.isdir(checkpoint_file_or_dir):
+            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+        else:
+            checkpoint = checkpoint_file_or_dir
+        hf_dict = torch.load(checkpoint, map_location=map_location)
+        vocab_size, hidden_size = BertCreator.get_vocab_and_hidden_dims(hf_dict)
+        enc = SentenceBert(vocab_size, **kwargs)
         missing, unused = BertCreator.convert_state_dict(enc, hf_dict)
         logging.info(f'Unset params: {missing}')
         logging.info(f'Unused checkpoint fields: {unused}')

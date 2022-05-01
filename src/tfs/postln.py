@@ -10,7 +10,6 @@ import logging
 logger = logging.getLogger('tfs')
 
 
-
 class TransformerEncoderLayer(nn.Module):
     """A single (post-layer-norm style) Transformer layer
 
@@ -32,7 +31,7 @@ class TransformerEncoderLayer(nn.Module):
         layer_norm_eps: float = 1e-12,
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
-        layer_factory = None,
+        layer_factory=None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -131,7 +130,9 @@ class TransformerEncoder(nn.Module):
         self.embeddings = EmbeddingClass(vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len)
         self.encoder = nn.ModuleList(
             [
-                TransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory)
+                TransformerEncoderLayer(
+                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                )
                 for _ in range(num_layers)
             ]
         )
@@ -209,7 +210,7 @@ class TransformerDecoderLayer(nn.Module):
         layer_norm_eps: float = 1e-12,
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
-        layer_factory = None,
+        layer_factory=None,
     ):
         """Initialize our transformer, uses bert-base defaults
 
@@ -293,7 +294,7 @@ class TransformerEncoderDecoder(nn.Module):
         feed_forward_size: Optional[int] = None,
         max_seq_len: int = 512,
         do_embeddings_layer_norm=True,
-        layer_factory = None,
+        layer_factory=None,
     ):
         """Set up initialization for a (post-layer-norm) Transformer.  Defaults to bert-base settings
 
@@ -329,13 +330,17 @@ class TransformerEncoderDecoder(nn.Module):
 
         self.encoder = nn.ModuleList(
             [
-                TransformerEncoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory)
+                TransformerEncoderLayer(
+                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                )
                 for _ in range(num_encoder_layers)
             ]
         )
         self.decoder = nn.ModuleList(
             [
-                TransformerDecoderLayer(hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory)
+                TransformerDecoderLayer(
+                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                )
                 for _ in range(num_decoder_layers)
             ]
         )
@@ -440,6 +445,7 @@ class TransformerSequenceGenerator(TransformerEncoderDecoder):
     At inference time, we will do some decoding over time, and so we need to be able to
     call the encoder once, and the decoder N times
     """
+
     def __init__(
         self,
         EmbeddingClass: Callable,
@@ -455,8 +461,7 @@ class TransformerSequenceGenerator(TransformerEncoderDecoder):
         feed_forward_size: Optional[int] = None,
         max_seq_len: int = 1024,
         do_embeddings_layer_norm=True,
-        layer_factory = None,
-
+        layer_factory=None,
     ):
         super().__init__(
             EmbeddingClass,
@@ -480,9 +485,3 @@ class TransformerSequenceGenerator(TransformerEncoderDecoder):
     def decode(self, src_enc, dst, src_mask: Optional[torch.Tensor] = None, dst_mask: Optional[torch.Tensor] = None):
         dst_enc = super().decode(src_enc, dst, src_mask, dst_mask)
         return self.output_proj(dst_enc)
-
-
-
-
-
-
