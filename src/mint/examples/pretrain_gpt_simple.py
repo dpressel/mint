@@ -1,7 +1,13 @@
+"""Pre-train a GPT2 model in PyTorch (Simple single file version)
+
+This works for a small dataset that fits in memory.  We will use the SimpleTrainer's train_epochs()
+function to train this.
+
+"""
+
 import logging
 import argparse
 import torch
-import numpy as np
 from torch.utils.data import Dataset, TensorDataset
 from mint.gpt import GPT2TransformerLM, GPTTransformerLM, GPTCreator, GPT2Creator
 from mint.train import SingleDeviceLMTrainer
@@ -9,13 +15,6 @@ from tokenizers import Tokenizer
 import os
 
 logger = logging.getLogger(__file__)
-
-"""Pre-train a GPT2 model in PyTorch (Simple single file version)
-
-This works for a small dataset that fits in memory.  We will use the SimpleTrainer's train_epochs()
-function to train this.
-
-"""
 
 
 def create_single_file_dataset(tokenizer: Tokenizer, fname: str, seq_len) -> Dataset:

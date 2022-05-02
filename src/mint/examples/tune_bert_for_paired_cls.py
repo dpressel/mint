@@ -1,24 +1,9 @@
-from mint.bert import BertCreator
-from mint.train import Average
-import json
-from typing import Optional, Callable, List
-from mint.data import TextFile, TensorDataset
-from tokenizers import BertWordPieceTokenizer
-import argparse
-import sys
-import os
-import torch
-import logging
-from tqdm import tqdm
-
-PAD_VALUE = 0
-
-logger = logging.getLogger(__file__)
 
 """Fine-tune BERT as a cross-encoder or dual-encoder (following SentenceBERT) classifier
 
-This program fine-tunes a pre-trained BERT for an unstructured prediction (classification) task with 2 text
-inputs.  This typically corresponds to so-called Natural Language Inference datasets.  
+This program fine-tunes a pre-trained BERT for an unstructured prediction (classification)
+task with 2 text inputs.  This typically corresponds to so-called Natural Language Inference
+datasets.
 
 The label space should be ternary, with -1 meaning contradiction, 1 for entailment or 0 for neutral.
 
@@ -34,6 +19,23 @@ Early stopping is performed on the dataset in order to determine the best checkp
 If there is a `test_file` provided in the args, we will run an evaluation on our best checkpoint.
 
 """
+
+from mint.bert import BertCreator
+from mint.train import Average
+import json
+from typing import Optional, List
+from mint.data import TextFile, TensorDataset
+from tokenizers import BertWordPieceTokenizer
+import argparse
+import sys
+import os
+import torch
+import logging
+from tqdm import tqdm
+
+PAD_VALUE = 0
+
+logger = logging.getLogger(__file__)
 
 
 class PairedTextTrainer:

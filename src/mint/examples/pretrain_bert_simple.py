@@ -1,7 +1,6 @@
 import logging
 import argparse
 import torch
-import numpy as np
 from torch.utils.data import Dataset, TensorDataset
 from mint.bert import BertCreator, NoisingCollator, TransformerMLM
 from mint.train import SingleDeviceLMTrainer

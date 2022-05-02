@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import numpy as np
 import os
 from typing import Optional
 from mint.common import WeightTiedVocabProjection

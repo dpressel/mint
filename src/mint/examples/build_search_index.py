@@ -1,7 +1,6 @@
 """Create a search index for Transformer embeddings using faiss
 """
 import argparse
-import os
 import torch
 import logging
 from bert import BertCreator
