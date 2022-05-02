@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from typing import Optional, Callable
-from common import DefaultLayerFactory, WeightTiedVocabProjection
+from mint.common import DefaultLayerFactory, WeightTiedVocabProjection
 import math
 import logging
 
