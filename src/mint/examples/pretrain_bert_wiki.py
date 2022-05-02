@@ -2,9 +2,9 @@ import logging
 import argparse
 import torch
 from torch.utils.data import Dataset
-from tfs.bert import BertCreator, NoisingCollator, TransformerMLM
-from tfs.train import DistributedLMTrainer, SingleDeviceLMTrainer
-from tfs.data import RawInfiniteDataset
+from mint.bert import BertCreator, NoisingCollator, TransformerMLM
+from mint.train import DistributedLMTrainer, SingleDeviceLMTrainer
+from mint.data import RawInfiniteDataset
 from tokenizers import BertWordPieceTokenizer
 import json
 import os

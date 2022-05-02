@@ -1,9 +1,9 @@
-from tfs.gpt import GPT2Creator
-from tfs.train import Average
+from mint.gpt import GPT2Creator
+from mint.train import Average
 from tokenizers import ByteLevelBPETokenizer
 from typing import Optional, Callable, List
 from torch.utils.data import Dataset, TensorDataset
-from tfs.data import TextFile
+from mint.data import TextFile
 import argparse
 import sys
 import torch

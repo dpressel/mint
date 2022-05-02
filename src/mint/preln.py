@@ -7,7 +7,7 @@ from common import DefaultLayerFactory, WeightTiedVocabProjection
 import math
 import logging
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 
 class PreLayerNormTransformerEncoderLayer(nn.Module):

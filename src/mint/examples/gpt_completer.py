@@ -4,7 +4,7 @@ import os
 import torch
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
-from tfs.gpt import GPTCreator, GPT2Creator
+from mint.gpt import GPTCreator, GPT2Creator
 from tokenizers import Tokenizer
 
 logger = logging.getLogger(__file__)

@@ -4,10 +4,10 @@ import numpy as np
 import os
 from typing import Optional, Callable
 import math
-from common import DefaultLayerFactory, WeightTiedVocabProjection
+from mint.common import DefaultLayerFactory, WeightTiedVocabProjection
 import logging
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 
 class TransformerEncoderLayer(nn.Module):

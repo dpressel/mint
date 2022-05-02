@@ -1,6 +1,6 @@
-from tfs.bart import BartCreator
-from tfs.train import Average
-from tfs.data import read_cls_dataset
+from mint.bart import BartCreator
+from mint.train import Average
+from mint.data import read_cls_dataset
 from tokenizers import Tokenizer
 import argparse
 import sys

@@ -1,8 +1,8 @@
-from tfs.bert import BertCreator
-from tfs.train import Average
+from mint.bert import BertCreator
+from mint.train import Average
 import json
 from typing import Optional, Callable, List
-from tfs.data import TextFile, TensorDataset
+from mint.data import TextFile, TensorDataset
 from tokenizers import BertWordPieceTokenizer
 import argparse
 import sys

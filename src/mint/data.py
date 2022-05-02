@@ -8,7 +8,7 @@ import os
 import json
 from typing import Callable, Optional, List
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 try:
     import bz2

@@ -3,8 +3,8 @@ import argparse
 import torch
 import numpy as np
 from torch.utils.data import Dataset, TensorDataset
-from tfs.t5 import T5Creator, NoisingCollator, T5SequenceGenerator
-from tfs.train import SingleDeviceSeq2SeqTrainer
+from mint.t5 import T5Creator, NoisingCollator, T5SequenceGenerator
+from mint.train import SingleDeviceSeq2SeqTrainer
 from tokenizers import Tokenizer
 import os
 

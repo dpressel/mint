@@ -1,10 +1,9 @@
 import logging
 import argparse
 import torch
-import numpy as np
 from torch.utils.data import Dataset, TensorDataset
-from tfs.bart import BartCreator, NoisingCollator, BartSequenceGenerator
-from tfs.train import SingleDeviceSeq2SeqTrainer
+from mint.bart import BartCreator, NoisingCollator, BartSequenceGenerator
+from mint.train import SingleDeviceSeq2SeqTrainer
 from tokenizers import Tokenizer
 import os
 

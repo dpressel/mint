@@ -3,12 +3,12 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.postln import TransformerEncoderDecoder, TransformerSequenceGenerator
+from mint.postln import TransformerEncoderDecoder, TransformerSequenceGenerator
 
 import logging
 import random
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 
 def create_dst_from_src(input_ids: torch.Tensor, decoder_start_token_id: int = 2):

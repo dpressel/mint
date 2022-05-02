@@ -3,8 +3,8 @@ import argparse
 import torch
 import numpy as np
 from torch.utils.data import Dataset, TensorDataset
-from tfs.gpt import GPT2TransformerLM, GPTTransformerLM, GPTCreator, GPT2Creator
-from tfs.train import SingleDeviceLMTrainer
+from mint.gpt import GPT2TransformerLM, GPTTransformerLM, GPTCreator, GPT2Creator
+from mint.train import SingleDeviceLMTrainer
 from tokenizers import Tokenizer
 import os
 
