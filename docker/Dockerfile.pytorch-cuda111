@@ -1,0 +1,24 @@
+FROM meadml/cuda11.1-cudnn8-devel-ubuntu18.04-python3.8
+
+COPY . /usr/mint
+WORKDIR /usr/mint
+
+RUN cd src && pip install --no-use-pep517 .[examples]
+
+# Set env variables
+ENV TIMING_LOG_LEVEL=DEBUG
+# Set terminal encodings
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+ENV PATH=/usr/local/cuda/bin:$PATH
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+COPY . /usr/mint
+
+# Install pytorch
+
+
+RUN python3.8 -m pip --no-cache-dir install torch==1.8.2+cu111 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html && \
+    python3.8 -m pip install tensorboard 
+
+

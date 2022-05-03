@@ -1,4 +1,3 @@
-
 """Fine-tune BERT as a cross-encoder or dual-encoder (following SentenceBERT) classifier
 
 This program fine-tunes a pre-trained BERT for an unstructured prediction (classification)
