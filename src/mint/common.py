@@ -1,12 +1,10 @@
 import torch
 import torch.nn as nn
-import numpy as np
-import os
-from typing import Optional, Callable
+from typing import Optional
 import math
 import logging
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 
 class WeightTiedVocabProjection(nn.Module):

@@ -1,6 +1,6 @@
-from tfs.bert import BertCreator
-from tfs.train import Average
-from tfs.data import read_cls_dataset
+from mint.bert import BertCreator
+from mint.train import Average
+from mint.data import read_cls_dataset
 from tokenizers import BertWordPieceTokenizer
 import argparse
 import sys

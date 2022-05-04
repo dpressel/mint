@@ -3,11 +3,11 @@ import torch.nn as nn
 import numpy as np
 import os
 from typing import Optional
-from tfs.postln import TransformerEncoder
-from tfs.common import WeightTiedVocabProjection
+from mint.postln import TransformerEncoder
+from mint.common import WeightTiedVocabProjection
 import logging
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 
 class BertLearnedPositionalEmbedding(nn.Module):

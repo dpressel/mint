@@ -2,10 +2,10 @@ import logging
 import argparse
 import torch
 from torch.utils.data import Dataset, TensorDataset, DataLoader
-from tfs.gpt import GPTCreator, GPT2Creator
+from mint.gpt import GPTCreator, GPT2Creator
 from tokenizers import Tokenizer
 import os
-from tfs.train import Average
+from mint.train import Average
 from tqdm import tqdm
 import time
 import math

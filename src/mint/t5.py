@@ -3,12 +3,12 @@ import torch.nn as nn
 import os
 import math
 from typing import Optional
-from tfs.preln import PreLayerNormTransformerSequenceGenerator
+from mint.preln import PreLayerNormTransformerSequenceGenerator
 import logging
 import numpy as np
 import re
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 
 def _relative_position_bucket(relative_position, is_bidirectional, num_buckets, max_distance):

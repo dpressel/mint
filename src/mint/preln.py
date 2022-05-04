@@ -1,13 +1,11 @@
 import torch
 import torch.nn as nn
-import numpy as np
-import os
 from typing import Optional, Callable
-from common import DefaultLayerFactory, WeightTiedVocabProjection
+from mint.common import DefaultLayerFactory, WeightTiedVocabProjection
 import math
 import logging
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 
 class PreLayerNormTransformerEncoderLayer(nn.Module):

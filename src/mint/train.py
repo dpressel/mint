@@ -7,10 +7,9 @@ import logging
 from torch.utils.data import DataLoader, Dataset
 import time
 from tqdm import tqdm
-import contextlib
 from torch.nn.parallel import DistributedDataParallel
 
-logger = logging.getLogger('tfs')
+logger = logging.getLogger('mint')
 
 
 class Average:

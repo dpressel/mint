@@ -3,7 +3,7 @@ import argparse
 import torch
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
-from tfs.bert import BertCreator
+from mint.bert import BertCreator
 from tokenizers import BertWordPieceTokenizer
 
 logger = logging.getLogger(__file__)

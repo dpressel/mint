@@ -2,9 +2,9 @@ import logging
 import argparse
 import torch
 from torch.utils.data import Dataset
-from tfs.bart import BartCreator, NoisingCollator, BartSequenceGenerator
-from tfs.train import SingleDeviceSeq2SeqTrainer, DistributedSeq2SeqTrainer
-from tfs.data import RawInfiniteDataset
+from mint.bart import BartCreator, NoisingCollator, BartSequenceGenerator
+from mint.train import SingleDeviceSeq2SeqTrainer, DistributedSeq2SeqTrainer
+from mint.data import RawInfiniteDataset
 from tokenizers import Tokenizer
 import json
 import os

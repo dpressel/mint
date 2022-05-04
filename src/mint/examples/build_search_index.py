@@ -1,14 +1,13 @@
 """Create a search index for Transformer embeddings using faiss
 """
 import argparse
-import os
 import torch
 import logging
 from bert import BertCreator
 import faiss
 from typing import List
 from tokenizers import BertWordPieceTokenizer
-from tfs.data import TextFile
+from mint.data import TextFile
 import numpy as np
 import json
 

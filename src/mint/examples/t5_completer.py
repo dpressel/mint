@@ -1,3 +1,5 @@
+"""An example program where you can provide your T5 model with a priming sequence and have it complete
+"""
 import logging
 import argparse
 import os
@@ -9,8 +11,6 @@ from t5 import T5Creator
 
 logger = logging.getLogger(__file__)
 DECODER_START_TOKEN = 0
-"""An example program where you can provide your T5 model with a priming sequence and have it complete
-"""
 
 
 def main():
@@ -71,7 +71,7 @@ def main():
         print(complete(args.query, args.sample, args.temperature))
         return
 
-    prompt_name = f'T5>> '
+    prompt_name = 'T5>> '
     history = FileHistory(args.history_file)
     while True:
         query = prompt(prompt_name, history=history)
