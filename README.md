@@ -14,7 +14,8 @@ Minimal PyTorch implementation of common Transformer architectures.  Currently i
 - Encoder-Decoder
   - [BART](https://arxiv.org/pdf/1910.13461v1.pdf)
   - [T5](https://arxiv.org/pdf/1910.10683.pdf)
-
+- Dual-Encoder
+  - [SentenceBERT](https://aclanthology.org/D19-1410.pdf)
 
 ## Colabs
 This code was written for a (not-yet-complete) Colab Tutorial.  Each tutorial
