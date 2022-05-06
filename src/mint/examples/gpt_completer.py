@@ -80,7 +80,7 @@ def main():
             args.sample = False
             print("Turn sampling mode off")
             continue
-        print(complete(query, args.sample))
+        print(complete(query, args.sample, args.temperature))
 
 
 if __name__ == "__main__":
