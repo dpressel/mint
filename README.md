@@ -64,13 +64,14 @@ You also need to use this repository:
 
 ```
 git clone https://github.com/attardi/wikiextractor
+cd wikiextractor
 git checkout 16186e290d9eb0eb3a3784c6c0635a9ed7e855c3
 
 ```
 Here is how I ran it for my example:
 
 ```
-python -m WikiExtractor.py ${INPUT}/enwiki-latest-pages-articles.xml.bz2 \
+python WikiExtractor.py ${INPUT}/enwiki-latest-pages-articles.xml.bz2 \
        -q --json \
        --processes 7 \
        --output ${OUTPUT}/enwiki-extracted \
