@@ -76,8 +76,8 @@ def main():
     parser.add_argument("--weight_decay", type=float, default=1.0e-2, help="Weight decay")
     parser.add_argument("--epochs", type=int, default=1, help="Num training epochs")
     parser.add_argument("--restart_from", type=str, help="Option allows you to restart from a previous checkpoint")
-    parser.add_argument("--warmup_fract", type=int, default=0.1, help="Fraction of steps spent warming up")
-    parser.add_argument("--plateau_fract", type=int, default=0.0, help="Fraction of steps spent holding at max lr")
+    parser.add_argument("--warmup_fract", type=float, default=0.1, help="Fraction of steps spent warming up")
+    parser.add_argument("--plateau_fract", type=float, default=0.0, help="Fraction of steps spent holding at max lr")
     parser.add_argument("--saves_per_epoch", type=int, default=10, help="The number of checkpoints to save per epoch")
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)"

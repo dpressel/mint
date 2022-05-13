@@ -41,8 +41,8 @@ class SingleDeviceTrainer:
         lr: float = 1.0e-4,
         batch_size: int = 256,
         weight_decay: float = 1.0e-2,
-        warmup_fract: int = 0.1,
-        plateau_fract: int = 0.0,
+        warmup_fract: float = 0.1,
+        plateau_fract: float = 0.0,
         decay_type: str = 'cosine',
         total_steps: Optional[int] = None,
         global_step: int = 0,
@@ -277,7 +277,7 @@ class SingleDeviceTrainer:
             current_epoch += 1
 
     def _warmup(self, global_step):
-        warmup_steps = self.warmup_fract * self.total_steps
+        warmup_steps = int(self.warmup_fract * self.total_steps)
         lr_factor = min(1.0, global_step / warmup_steps)
         return self.lr * lr_factor
 
@@ -293,7 +293,7 @@ class SingleDeviceTrainer:
         return scaled_lr
 
     def _lr_step(self, global_step):
-        total_steps_lr1 = self.total_steps * (self.warmup_fract + self.plateau_fract)
+        total_steps_lr1 = self.total_steps * int(self.warmup_fract + self.plateau_fract)
         if global_step < total_steps_lr1:
             return self._warmup(global_step)
         return self._decay(global_step - total_steps_lr1)
@@ -510,8 +510,8 @@ class DistributedTrainer:
         lr: float = 1.0e-4,
         batch_size: int = 256,
         weight_decay: float = 1.0e-2,
-        warmup_fract: int = 0.1,
-        plateau_fract: int = 0.0,
+        warmup_fract: float = 0.1,
+        plateau_fract: float = 0.0,
         decay_type: str = 'cosine',
         total_steps: Optional[int] = None,
         global_step: int = 0,
@@ -682,7 +682,7 @@ class DistributedTrainer:
         plt.show()
 
     def _warmup(self, global_step):
-        warmup_steps = self.warmup_fract * self.total_steps
+        warmup_steps = int(self.warmup_fract * self.total_steps)
         lr_factor = min(1.0, global_step / warmup_steps)
         return self.lr * lr_factor
 
@@ -698,7 +698,7 @@ class DistributedTrainer:
         return scaled_lr
 
     def _lr_step(self, global_step):
-        total_steps_lr1 = self.total_steps * (self.warmup_fract + self.plateau_fract)
+        total_steps_lr1 = self.total_steps * int(self.warmup_fract + self.plateau_fract)
         if global_step < total_steps_lr1:
             return self._warmup(global_step)
         return self._decay(global_step - total_steps_lr1)
