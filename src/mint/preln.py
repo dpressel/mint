@@ -5,7 +5,7 @@ from mint.common import DefaultLayerFactory, WeightTiedVocabProjection
 import math
 import logging
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 
 class PreLayerNormTransformerEncoderLayer(nn.Module):
@@ -47,9 +47,15 @@ class PreLayerNormTransformerEncoderLayer(nn.Module):
         self.hidden_size = hidden_size
         self.dropout = dropout
         self.d_ff = feed_forward_size
-        self.self_attention = layer_factory.encoder_multihead_attention(hidden_size, num_heads)
-        self.self_attention_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
-        self.ffn = layer_factory.feed_forward(hidden_size, feed_forward_size, activation)
+        self.self_attention = layer_factory.encoder_multihead_attention(
+            hidden_size, num_heads
+        )
+        self.self_attention_layer_norm = layer_factory.layer_norm(
+            hidden_size, layer_norm_eps
+        )
+        self.ffn = layer_factory.feed_forward(
+            hidden_size, feed_forward_size, activation
+        )
         self.output_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
 
     def maybe_dropout(self, x: torch.Tensor) -> torch.Tensor:
@@ -125,7 +131,9 @@ class PreLayerNormTransformerEncoder(nn.Module):
         if layer_factory is None:
             layer_factory = DefaultLayerFactory.get_instance()
         self.padding_idx = padding_idx
-        self.embeddings = EmbeddingClass(vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len)
+        self.embeddings = EmbeddingClass(
+            vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
+        )
         self.encoder = nn.ModuleList(
             [
                 PreLayerNormTransformerEncoderLayer(
@@ -169,7 +177,10 @@ class PreLayerNormTransformerEncoder(nn.Module):
         return mask.unsqueeze(1).unsqueeze(1).to(device=x.device)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        token_type: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
 
@@ -194,7 +205,10 @@ class PreLayerNormTransformerEncoder(nn.Module):
         """
         if isinstance(module, (nn.Linear, nn.Embedding, self.LayerNormImpl)):
             module.weight.data.normal_(mean=0.0, std=0.02)
-        if isinstance(module, (nn.Linear, self.LayerNormImpl)) and module.bias is not None:
+        if (
+            isinstance(module, (nn.Linear, self.LayerNormImpl))
+            and module.bias is not None
+        ):
             module.bias.data.zero_()
 
         # TODO: GPT2 only, move this up into the LM?
@@ -241,11 +255,21 @@ class PreLayerNormTransformerDecoderLayer(nn.Module):
         self.hidden_size = hidden_size
         self.dropout = dropout
         self.d_ff = feed_forward_size
-        self.self_attention = layer_factory.decoder_multihead_attention(hidden_size, num_heads)
-        self.self_attention_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
-        self.encoder_attention = layer_factory.encoder_decoder_attention(hidden_size, num_heads)
-        self.encoder_attention_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
-        self.ffn = layer_factory.feed_forward(hidden_size, feed_forward_size, activation)
+        self.self_attention = layer_factory.decoder_multihead_attention(
+            hidden_size, num_heads
+        )
+        self.self_attention_layer_norm = layer_factory.layer_norm(
+            hidden_size, layer_norm_eps
+        )
+        self.encoder_attention = layer_factory.encoder_decoder_attention(
+            hidden_size, num_heads
+        )
+        self.encoder_attention_layer_norm = layer_factory.layer_norm(
+            hidden_size, layer_norm_eps
+        )
+        self.ffn = layer_factory.feed_forward(
+            hidden_size, feed_forward_size, activation
+        )
         self.output_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
 
     def maybe_dropout(self, x: torch.Tensor) -> torch.Tensor:
@@ -336,12 +360,20 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
             vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
         )
 
-        self.decoder_embeddings.word_embeddings = self.encoder_embeddings.word_embeddings
+        self.decoder_embeddings.word_embeddings = (
+            self.encoder_embeddings.word_embeddings
+        )
 
         self.encoder = nn.ModuleList(
             [
                 PreLayerNormTransformerEncoderLayer(
-                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                    hidden_size,
+                    num_heads,
+                    dropout,
+                    layer_norm_eps,
+                    activation,
+                    feed_forward_size,
+                    layer_factory,
                 )
                 for _ in range(num_encoder_layers)
             ]
@@ -349,7 +381,13 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
         self.decoder = nn.ModuleList(
             [
                 PreLayerNormTransformerDecoderLayer(
-                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                    hidden_size,
+                    num_heads,
+                    dropout,
+                    layer_norm_eps,
+                    activation,
+                    feed_forward_size,
+                    layer_factory,
                 )
                 for _ in range(num_decoder_layers)
             ]
@@ -397,7 +435,9 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
         mask = x != self.padding_idx
         return mask.unsqueeze(1).unsqueeze(1).to(device=x.device)
 
-    def encode(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def encode(
+        self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         src_enc = self.encoder_embeddings(src)
         for t in self.encoder:
             src_enc = t(src_enc, src_mask)
@@ -449,7 +489,10 @@ class PreLayerNormTransformerEncoderDecoder(nn.Module):
         """
         if isinstance(module, (nn.Linear, nn.Embedding, self.LayerNormImpl)):
             module.weight.data.normal_(mean=0.0, std=0.02)
-        if isinstance(module, (nn.Linear, self.LayerNormImpl)) and module.bias is not None:
+        if (
+            isinstance(module, (nn.Linear, self.LayerNormImpl))
+            and module.bias is not None
+        ):
             module.bias.data.zero_()
 
 
@@ -485,7 +528,9 @@ class PreLayerNormTransformerSequenceGenerator(PreLayerNormTransformerEncoderDec
             max_seq_len,
             layer_factory,
         )
-        self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
+        self.output_proj = WeightTiedVocabProjection(
+            self.decoder_embeddings.word_embeddings
+        )
         self.apply(self.init_layer_weights)
 
     def decode(

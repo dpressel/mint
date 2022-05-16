@@ -8,10 +8,12 @@ import logging
 import numpy as np
 import re
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 
-def _relative_position_bucket(relative_position, is_bidirectional, num_buckets, max_distance):
+def _relative_position_bucket(
+    relative_position, is_bidirectional, num_buckets, max_distance
+):
     """
 
     Taken from:
@@ -24,7 +26,9 @@ def _relative_position_bucket(relative_position, is_bidirectional, num_buckets, 
         relative_buckets += (relative_position > 0).to(torch.long) * num_buckets
         relative_position = torch.abs(relative_position)
     else:
-        relative_position = -torch.min(relative_position, torch.zeros_like(relative_position))
+        relative_position = -torch.min(
+            relative_position, torch.zeros_like(relative_position)
+        )
 
     # now n is in the range [0, inf)
     max_exact = num_buckets // 2
@@ -35,10 +39,13 @@ def _relative_position_bucket(relative_position, is_bidirectional, num_buckets, 
         * (num_buckets - max_exact)
     ).to(torch.long)
     relative_postion_if_large = torch.min(
-        relative_postion_if_large, torch.full_like(relative_postion_if_large, num_buckets - 1)
+        relative_postion_if_large,
+        torch.full_like(relative_postion_if_large, num_buckets - 1),
     )
 
-    relative_buckets += torch.where(is_small, relative_position, relative_postion_if_large)
+    relative_buckets += torch.where(
+        is_small, relative_position, relative_postion_if_large
+    )
     return relative_buckets
 
 
@@ -52,7 +59,8 @@ class SharedRelativeAttentionBias(nn.Module):
         self.max_distance = 128
         self.is_bidirectional = is_bidirectional
         rel_embedding = torch.nn.init.kaiming_normal_(
-            torch.empty((self.num_heads, self.num_buckets), dtype=torch.float), nonlinearity='linear'
+            torch.empty((self.num_heads, self.num_buckets), dtype=torch.float),
+            nonlinearity="linear",
         )
 
         self.relative_attention_bias = nn.Parameter(rel_embedding, requires_grad=True)
@@ -69,7 +77,10 @@ class SharedRelativeAttentionBias(nn.Module):
         relative_position = memory_position - query_position
 
         rp_bucket = _relative_position_bucket(
-            relative_position, self.is_bidirectional, self.num_buckets, self.max_distance
+            relative_position,
+            self.is_bidirectional,
+            self.num_buckets,
+            self.max_distance,
         )
         relative_attention_bias = self.relative_attention_bias[:, rp_bucket]
         return relative_attention_bias
@@ -84,7 +95,12 @@ class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
 
     """
 
-    def __init__(self, hidden_size: int, num_heads: int, relative_attention_bias: SharedRelativeAttentionBias):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_heads: int,
+        relative_attention_bias: SharedRelativeAttentionBias,
+    ):
         """Each block has the same hidden unit size (`d_model` in the paper).  Must be a multiple of num heads
 
         :param hidden_size: The number of units (both input and output) of the MHA block
@@ -106,7 +122,9 @@ class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
         self.d_k = d_k
         self.relative_attention_bias = relative_attention_bias
 
-    def forward(self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Multi-headed encoder-decoder attention with relative bias
 
         :param src: A `[B, T_k, C]` tensor where B is batch, T_k is time, C is hidden size
@@ -138,7 +156,10 @@ class MultiHeadedEncoderDecoderRelativeAttentionBias(nn.Module):
 
 class MultiHeadedRelativeAttentionBias(nn.Module):
     def __init__(
-        self, hidden_size: int, num_heads: int, relative_attention_bias: SharedRelativeAttentionBias
+        self,
+        hidden_size: int,
+        num_heads: int,
+        relative_attention_bias: SharedRelativeAttentionBias,
     ):  # num_buckets: int = 32, max_distance: int = 128):
         """Each block has the same hidden unit size (`d_model` in the paper).  Must be a multiple of num heads
 
@@ -162,7 +183,9 @@ class MultiHeadedRelativeAttentionBias(nn.Module):
         self.d_k = d_k
         self.relative_attention_bias = relative_attention_bias
 
-    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Multi-headed self attention with relative bias
 
         :param x: A `[B, T, C]` tensor where B is batch, T is time, C is hidden size
@@ -190,7 +213,9 @@ class MultiHeadedRelativeAttentionBias(nn.Module):
 
 
 def create_feed_forward_layer_no_bias(
-    hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.ReLU()
+    hidden_size: int,
+    feed_forward_size: Optional[int] = None,
+    activation: nn.Module = nn.ReLU(),
 ):
     """Create a feed-forward layer (called FFN in the paper)
 
@@ -243,12 +268,20 @@ class WordOnlyEmbedding(nn.Module):
     No `token_type` is used and the `max_seq_len` is ignored
     """
 
-    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512):
+    def __init__(
+        self,
+        vocab_dim: int,
+        hidden_dim: int = 768,
+        padding_idx: int = 0,
+        max_seq_len: int = 512,
+    ):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
         self.word_embeddings.weight.data.normal_(mean=0.0, std=1.0)
 
-    def forward(self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Takes a tensor of shape `[B, T]` and an optional `token_type` of same shape
 
         :param x: A tensor of word one-hots, shape `[B, T]`
@@ -283,9 +316,15 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
         max_seq_len: int = 512,
         **kwargs,
     ):
-        enc_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, True)
-        dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
-        enc_dec_shared_relative_attention_bias = SharedRelativeAttentionBias(num_heads, False)
+        enc_shared_relative_attention_bias = SharedRelativeAttentionBias(
+            num_heads, True
+        )
+        dec_shared_relative_attention_bias = SharedRelativeAttentionBias(
+            num_heads, False
+        )
+        enc_dec_shared_relative_attention_bias = SharedRelativeAttentionBias(
+            num_heads, False
+        )
 
         class LayerFactory:
 
@@ -301,16 +340,24 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
 
             def __init__(self):
                 if LayerFactory._instance is not None:
-                    raise Exception("Singleton constructor call.  Expected no definition")
+                    raise Exception(
+                        "Singleton constructor call.  Expected no definition"
+                    )
 
-                self.encoder_multihead_attention = lambda x, y: MultiHeadedRelativeAttentionBias(
-                    x, y, enc_shared_relative_attention_bias
+                self.encoder_multihead_attention = (
+                    lambda x, y: MultiHeadedRelativeAttentionBias(
+                        x, y, enc_shared_relative_attention_bias
+                    )
                 )
-                self.decoder_multihead_attention = lambda x, y: MultiHeadedRelativeAttentionBias(
-                    x, y, dec_shared_relative_attention_bias
+                self.decoder_multihead_attention = (
+                    lambda x, y: MultiHeadedRelativeAttentionBias(
+                        x, y, dec_shared_relative_attention_bias
+                    )
                 )
-                self.encoder_decoder_attention = lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(
-                    x, y, enc_dec_shared_relative_attention_bias
+                self.encoder_decoder_attention = (
+                    lambda x, y: MultiHeadedEncoderDecoderRelativeAttentionBias(
+                        x, y, enc_dec_shared_relative_attention_bias
+                    )
                 )
                 self.layer_norm = LayerNormWithoutAdditiveBias
                 self.feed_forward = create_feed_forward_layer_no_bias
@@ -335,7 +382,9 @@ class T5SequenceGenerator(PreLayerNormTransformerSequenceGenerator):
         self.output_proj.pre_scale = hidden_size ** -0.5
         self.enc_shared_relative_attention_bias = enc_shared_relative_attention_bias
         self.dec_shared_relative_attention_bias = dec_shared_relative_attention_bias
-        self.enc_dec_shared_relative_attention_bias = enc_dec_shared_relative_attention_bias
+        self.enc_dec_shared_relative_attention_bias = (
+            enc_dec_shared_relative_attention_bias
+        )
         self.apply(self.init_layer_weights)
 
     def create_loss(self):
@@ -373,96 +422,114 @@ class T5Creator:
         remap = {}
 
         for field_name in hf_field_names:
-            if 'relative_attention_bias.weight' in field_name:
+            if "relative_attention_bias.weight" in field_name:
                 t5_state_dict[field_name] = t5_state_dict[field_name].T
 
-            new_field_name = field_name.replace('shared.weight', 'encoder_embeddings.word_embeddings.weight')
+            new_field_name = field_name.replace(
+                "shared.weight", "encoder_embeddings.word_embeddings.weight"
+            )
             new_field_name = re.sub(
-                r'(en|de)coder.block.(\d+).layer.0.SelfAttention.k.weight',
-                r'\1coder.\2.self_attention.key.weight',
+                r"(en|de)coder.block.(\d+).layer.0.SelfAttention.k.weight",
+                r"\1coder.\2.self_attention.key.weight",
                 new_field_name,
             )
             new_field_name = re.sub(
-                r'(en|de)coder.block.(\d+).layer.0.SelfAttention.q.weight',
-                r'\1coder.\2.self_attention.query.weight',
+                r"(en|de)coder.block.(\d+).layer.0.SelfAttention.q.weight",
+                r"\1coder.\2.self_attention.query.weight",
                 new_field_name,
             )
             new_field_name = re.sub(
-                r'(en|de)coder.block.(\d+).layer.0.SelfAttention.v.weight',
-                r'\1coder.\2.self_attention.value.weight',
+                r"(en|de)coder.block.(\d+).layer.0.SelfAttention.v.weight",
+                r"\1coder.\2.self_attention.value.weight",
                 new_field_name,
             )
             new_field_name = re.sub(
-                r'(en|de)coder.block.(\d+).layer.0.SelfAttention.o.weight',
-                r'\1coder.\2.self_attention.output.weight',
+                r"(en|de)coder.block.(\d+).layer.0.SelfAttention.o.weight",
+                r"\1coder.\2.self_attention.output.weight",
                 new_field_name,
             )
             new_field_name = re.sub(
-                r'(en|de)coder.block.(\d+).layer.0.layer_norm.weight',
-                r'\1coder.\2.self_attention_layer_norm.weight',
+                r"(en|de)coder.block.(\d+).layer.0.layer_norm.weight",
+                r"\1coder.\2.self_attention_layer_norm.weight",
                 new_field_name,
             )
             # For encoder block, FFN is 1
             new_field_name = re.sub(
-                r'encoder.block.(\d+).layer.1.DenseReluDense.wi.weight', r'encoder.\1.ffn.0.weight', new_field_name
+                r"encoder.block.(\d+).layer.1.DenseReluDense.wi.weight",
+                r"encoder.\1.ffn.0.weight",
+                new_field_name,
             )
             new_field_name = re.sub(
-                r'encoder.block.(\d+).layer.1.DenseReluDense.wo.weight', r'encoder.\1.ffn.2.weight', new_field_name
+                r"encoder.block.(\d+).layer.1.DenseReluDense.wo.weight",
+                r"encoder.\1.ffn.2.weight",
+                new_field_name,
             )
             new_field_name = re.sub(
-                r'encoder.block.(\d+).layer.1.layer_norm.weight', r'encoder.\1.output_layer_norm.weight', new_field_name
+                r"encoder.block.(\d+).layer.1.layer_norm.weight",
+                r"encoder.\1.output_layer_norm.weight",
+                new_field_name,
             )
             # For decoder block, FFN is 2
             new_field_name = re.sub(
-                r'decoder.block.(\d+).layer.2.DenseReluDense.wi.weight', r'decoder.\1.ffn.0.weight', new_field_name
+                r"decoder.block.(\d+).layer.2.DenseReluDense.wi.weight",
+                r"decoder.\1.ffn.0.weight",
+                new_field_name,
             )
             new_field_name = re.sub(
-                r'decoder.block.(\d+).layer.2.DenseReluDense.wo.weight', r'decoder.\1.ffn.2.weight', new_field_name
+                r"decoder.block.(\d+).layer.2.DenseReluDense.wo.weight",
+                r"decoder.\1.ffn.2.weight",
+                new_field_name,
             )
             new_field_name = re.sub(
-                r'decoder.block.(\d+).layer.2.layer_norm.weight', r'decoder.\1.output_layer_norm.weight', new_field_name
+                r"decoder.block.(\d+).layer.2.layer_norm.weight",
+                r"decoder.\1.output_layer_norm.weight",
+                new_field_name,
             )
 
             # For decoder block, encoder-decoder attention is 1:
             new_field_name = re.sub(
-                r'decoder.block.(\d+).layer.1.EncDecAttention.k.weight',
-                r'decoder.\1.encoder_attention.key.weight',
+                r"decoder.block.(\d+).layer.1.EncDecAttention.k.weight",
+                r"decoder.\1.encoder_attention.key.weight",
                 new_field_name,
             )
             new_field_name = re.sub(
-                r'decoder.block.(\d+).layer.1.EncDecAttention.q.weight',
-                r'decoder.\1.encoder_attention.query.weight',
+                r"decoder.block.(\d+).layer.1.EncDecAttention.q.weight",
+                r"decoder.\1.encoder_attention.query.weight",
                 new_field_name,
             )
             new_field_name = re.sub(
-                r'decoder.block.(\d+).layer.1.EncDecAttention.v.weight',
-                r'decoder.\1.encoder_attention.value.weight',
+                r"decoder.block.(\d+).layer.1.EncDecAttention.v.weight",
+                r"decoder.\1.encoder_attention.value.weight",
                 new_field_name,
             )
             new_field_name = re.sub(
-                r'decoder.block.(\d+).layer.1.EncDecAttention.o.weight',
-                r'decoder.\1.encoder_attention.output.weight',
+                r"decoder.block.(\d+).layer.1.EncDecAttention.o.weight",
+                r"decoder.\1.encoder_attention.output.weight",
                 new_field_name,
             )
             new_field_name = re.sub(
-                r'decoder.block.(\d+).layer.1.layer_norm.weight',
-                r'decoder.\1.encoder_attention_layer_norm.weight',
+                r"decoder.block.(\d+).layer.1.layer_norm.weight",
+                r"decoder.\1.encoder_attention_layer_norm.weight",
                 new_field_name,
             )
-            new_field_name = new_field_name.replace('encoder.final_layer_norm', 'encoder_layer_norm')
-            new_field_name = new_field_name.replace('decoder.final_layer_norm', 'decoder_layer_norm')
+            new_field_name = new_field_name.replace(
+                "encoder.final_layer_norm", "encoder_layer_norm"
+            )
+            new_field_name = new_field_name.replace(
+                "decoder.final_layer_norm", "decoder_layer_norm"
+            )
 
             new_field_name = new_field_name.replace(
-                'encoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight',
-                'enc_shared_relative_attention_bias.relative_attention_bias',
+                "encoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight",
+                "enc_shared_relative_attention_bias.relative_attention_bias",
             )
             new_field_name = new_field_name.replace(
-                'decoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight',
-                'dec_shared_relative_attention_bias.relative_attention_bias',
+                "decoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight",
+                "dec_shared_relative_attention_bias.relative_attention_bias",
             )
             new_field_name = new_field_name.replace(
-                'decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight',
-                'enc_dec_shared_relative_attention_bias.relative_attention_bias',
+                "decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight",
+                "enc_dec_shared_relative_attention_bias.relative_attention_bias",
             )
 
             if new_field_name in tlm_field_names:
@@ -475,24 +542,30 @@ class T5Creator:
     @classmethod
     def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
         try:
-            embeddings_weight = hf_dict[[k for k in hf_dict if 'shared.weight' in k][0]]
+            embeddings_weight = hf_dict[[k for k in hf_dict if "shared.weight" in k][0]]
         except:
-            embeddings_weight = hf_dict[[k for k in hf_dict if 'encoder_embeddings.word_embeddings.weight' in k][0]]
+            embeddings_weight = hf_dict[
+                [
+                    k
+                    for k in hf_dict
+                    if "encoder_embeddings.word_embeddings.weight" in k
+                ][0]
+            ]
         return embeddings_weight.shape
 
     @classmethod
     def from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = T5Creator.get_vocab_and_hidden_dims(hf_dict)
-        kwargs['hidden_size'] = hidden_size
+        kwargs["hidden_size"] = hidden_size
         seq2seq = T5SequenceGenerator(vocab_size, **kwargs)
         missing, unused = T5Creator.convert_state_dict(seq2seq, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return seq2seq
 
 
@@ -505,7 +578,7 @@ def corrupted_spans(inputs, vocab):
     """
     var_id = max(vocab.values())
     bos_id = 0
-    eos_id = vocab.get('</s>')
+    eos_id = vocab.get("</s>")
 
     span_lengths = np.random.poisson(3, len(inputs))
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)

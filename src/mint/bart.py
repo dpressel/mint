@@ -8,7 +8,7 @@ from mint.postln import TransformerEncoderDecoder, TransformerSequenceGenerator
 import logging
 import random
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 
 def create_dst_from_src(input_ids: torch.Tensor, decoder_start_token_id: int = 2):
@@ -28,14 +28,22 @@ class BartLearnedPositionalEmbedding(nn.Module):
 
     BART_POS_OFFSET = 2
 
-    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 1, max_seq_len: int = 1024):
+    def __init__(
+        self,
+        vocab_dim: int,
+        hidden_dim: int = 768,
+        padding_idx: int = 1,
+        max_seq_len: int = 1024,
+    ):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
         self.position_embeddings = nn.Embedding(
             max_seq_len + BartLearnedPositionalEmbedding.BART_POS_OFFSET, hidden_dim
         )
 
-    def forward(self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Takes a tensor of shape `[B, T]` and an optional `token_type` of same shape
 
         :param x: A tensor of word one-hots, shape `[B, T]`
@@ -45,7 +53,8 @@ class BartLearnedPositionalEmbedding(nn.Module):
         embed = self.word_embeddings(x)
 
         position = self.position_embeddings(
-            torch.arange(x.shape[-1], dtype=x.dtype).to(x.device) + BartLearnedPositionalEmbedding.BART_POS_OFFSET
+            torch.arange(x.shape[-1], dtype=x.dtype).to(x.device)
+            + BartLearnedPositionalEmbedding.BART_POS_OFFSET
         ).unsqueeze(0)
 
         return embed + position
@@ -204,23 +213,37 @@ class BartCreator:
         unused_checkpoint_fields = set(hf_field_names)
         remap = {}
         for field_name in hf_field_names:
-            new_field_name = field_name.replace('encoder.embed_tokens', 'encoder_embeddings.word_embeddings')
-            new_field_name = new_field_name.replace('encoder.embed_positions', 'encoder_embeddings.position_embeddings')
-            new_field_name = new_field_name.replace('decoder.embed_positions', 'decoder_embeddings.position_embeddings')
-            new_field_name = new_field_name.replace('encoder.layernorm_embedding', 'encoder_embeddings_layer_norm')
-            new_field_name = new_field_name.replace('decoder.layernorm_embedding', 'decoder_embeddings_layer_norm')
+            new_field_name = field_name.replace(
+                "encoder.embed_tokens", "encoder_embeddings.word_embeddings"
+            )
+            new_field_name = new_field_name.replace(
+                "encoder.embed_positions", "encoder_embeddings.position_embeddings"
+            )
+            new_field_name = new_field_name.replace(
+                "decoder.embed_positions", "decoder_embeddings.position_embeddings"
+            )
+            new_field_name = new_field_name.replace(
+                "encoder.layernorm_embedding", "encoder_embeddings_layer_norm"
+            )
+            new_field_name = new_field_name.replace(
+                "decoder.layernorm_embedding", "decoder_embeddings_layer_norm"
+            )
 
-            new_field_name = new_field_name.replace('self_attn', 'self_attention')
-            new_field_name = new_field_name.replace('encoder_attn', 'encoder_attention')
-            new_field_name = new_field_name.replace('k_proj', 'key')
-            new_field_name = new_field_name.replace('q_proj', 'query')
-            new_field_name = new_field_name.replace('v_proj', 'value')
-            new_field_name = new_field_name.replace('out_proj', 'output')
-            new_field_name = new_field_name.replace('.layers', '')
-            new_field_name = new_field_name.replace('attention.output.dense', 'self_attention.output')
-            new_field_name = new_field_name.replace('fc1', 'ffn.0')
-            new_field_name = new_field_name.replace('fc2', 'ffn.2')
-            new_field_name = new_field_name.replace('final_layer_norm', 'output_layer_norm')
+            new_field_name = new_field_name.replace("self_attn", "self_attention")
+            new_field_name = new_field_name.replace("encoder_attn", "encoder_attention")
+            new_field_name = new_field_name.replace("k_proj", "key")
+            new_field_name = new_field_name.replace("q_proj", "query")
+            new_field_name = new_field_name.replace("v_proj", "value")
+            new_field_name = new_field_name.replace("out_proj", "output")
+            new_field_name = new_field_name.replace(".layers", "")
+            new_field_name = new_field_name.replace(
+                "attention.output.dense", "self_attention.output"
+            )
+            new_field_name = new_field_name.replace("fc1", "ffn.0")
+            new_field_name = new_field_name.replace("fc2", "ffn.2")
+            new_field_name = new_field_name.replace(
+                "final_layer_norm", "output_layer_norm"
+            )
             if new_field_name in tlm_field_names:
                 tlm_field_names.remove(new_field_name)
                 unused_checkpoint_fields.remove(field_name)
@@ -232,37 +255,47 @@ class BartCreator:
     @classmethod
     def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
         try:
-            embeddings_weight = hf_dict[[k for k in hf_dict if 'encoder.embed_tokens.weight' in k][0]]
+            embeddings_weight = hf_dict[
+                [k for k in hf_dict if "encoder.embed_tokens.weight" in k][0]
+            ]
         except:
-            embeddings_weight = hf_dict[[k for k in hf_dict if 'encoder_embeddings.word_embeddings.weight' in k][0]]
+            embeddings_weight = hf_dict[
+                [
+                    k
+                    for k in hf_dict
+                    if "encoder_embeddings.word_embeddings.weight" in k
+                ][0]
+            ]
         return embeddings_weight.shape
 
     @classmethod
     def from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BartCreator.get_vocab_and_hidden_dims(hf_dict)
         seq2seq = BartSequenceGenerator(vocab_size, **kwargs)
         missing, unused = BartCreator.convert_state_dict(seq2seq, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return seq2seq
 
     @classmethod
-    def pooled_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+    def pooled_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BartCreator.get_vocab_and_hidden_dims(hf_dict)
         seq2seq = BartPooledEncoderDecoder(vocab_size, **kwargs)
         missing, unused = BartCreator.convert_state_dict(seq2seq, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return seq2seq
 
 
@@ -277,7 +310,7 @@ def sentence_permute(inputs, labels, vocab):
     :param vocab: A dictionary of strings to integers
     :return: The transformed labels
     """
-    pad_value = vocab.get('<pad>')
+    pad_value = vocab.get("<pad>")
     end_values = [vocab.get(punc) for punc in [".", "!", "?"]]
     mask = labels != pad_value
 
@@ -310,8 +343,8 @@ def token_mask(inputs, labels, vocab):
     :param vocab: A dictionary of strings to integers
     :return: The transformed labels
     """
-    pad_value = vocab.get('<pad>')
-    mask_value = vocab.get('<mask>')
+    pad_value = vocab.get("<pad>")
+    mask_value = vocab.get("<mask>")
     vocab_size = len(vocab)
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
     # make sure if the input is padded we dont mask
@@ -331,7 +364,9 @@ def token_mask(inputs, labels, vocab):
     indices_random = indices_random & masked_indices & ~indices_replaced
     # Dont predict [PAD] which is zero for bert and 1 for RoBERTa
     # We will assume here that PAD is one of the tokens near the beginning of the vocab
-    random_words = np.random.randint(low=pad_value + 1, high=vocab_size - 1, size=len(inputs))
+    random_words = np.random.randint(
+        low=pad_value + 1, high=vocab_size - 1, size=len(inputs)
+    )
     inputs[indices_random == 1] = random_words[indices_random == 1]
     return inputs, labels
 
@@ -347,7 +382,7 @@ def token_delete(inputs, labels, vocab):
     :param vocab: A dictionary of strings to integers
     :return: The transformed labels
     """
-    pad_value = vocab.get('<pad>')
+    pad_value = vocab.get("<pad>")
     deleted_indices = np.random.binomial(size=len(inputs), n=1, p=0.15)
     inputs_del = np.ones_like(inputs)
 
@@ -373,7 +408,9 @@ def document_rotate(inputs, labels, _):
 
     # Leave first token on the front
     start_token = np.random.choice(np.arange(len(inputs) - 1))
-    inputs_rot = np.array([inputs[0]] + np.roll(inputs[1:-1], -start_token).tolist() + [inputs[-1]])
+    inputs_rot = np.array(
+        [inputs[0]] + np.roll(inputs[1:-1], -start_token).tolist() + [inputs[-1]]
+    )
     return inputs_rot, labels
 
 
@@ -392,14 +429,19 @@ def text_infill(inputs, labels, vocab):
     :param vocab: A dictionary of strings to integers
     :return: The transformed labels
     """
-    pad_value = vocab.get('<pad>')
-    mask_token = vocab.get('<mask>')
-    start_value = vocab.get('<s>')
-    eos_value = vocab.get('</s>')
+    pad_value = vocab.get("<pad>")
+    mask_token = vocab.get("<mask>")
+    start_value = vocab.get("<s>")
+    eos_value = vocab.get("</s>")
     span_lengths = np.random.poisson(3, len(inputs))
     masked_indices = np.random.binomial(size=len(inputs), n=1, p=0.3)
     # make sure if the input is padded we dont mask
-    masked_indices = masked_indices & (labels != pad_value) & (labels != start_value) & (labels != eos_value)
+    masked_indices = (
+        masked_indices
+        & (labels != pad_value)
+        & (labels != start_value)
+        & (labels != eos_value)
+    )
     last = 0
     masked = []
 
@@ -436,7 +478,7 @@ def noise_inputs(inputs, vocab, ops=[sentence_permute, text_infill]):
     :param ops: A list of noising operations to complete (sequentially)
     :return: the corrupted inputs and the truth labels for those inputs
     """
-    decoder_demarc = vocab.get('</s>')
+    decoder_demarc = vocab.get("</s>")
     labels = np.copy(inputs)
     for op in ops:
         inputs, labels = op(inputs, labels, vocab)

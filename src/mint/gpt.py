@@ -7,7 +7,7 @@ from mint.preln import PreLayerNormTransformerEncoder
 from mint.postln import TransformerEncoder
 import logging
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 
 class GPTLearnedPositionalEmbedding(nn.Module):
@@ -20,7 +20,12 @@ class GPTLearnedPositionalEmbedding(nn.Module):
     """
 
     def __init__(
-        self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512, dropout: float = 0.1
+        self,
+        vocab_dim: int,
+        hidden_dim: int = 768,
+        padding_idx: int = 0,
+        max_seq_len: int = 512,
+        dropout: float = 0.1,
     ):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
@@ -38,7 +43,9 @@ class GPTLearnedPositionalEmbedding(nn.Module):
         """
         return nn.functional.dropout(x, self.dropout) if self.training else x
 
-    def forward(self, x: torch.Tensor, _: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, _: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Takes a tensor of shape `[B, T]`.  There is a second parameter, but its ignored here
 
         :param x: A tensor of word one-hots, shape `[B, T]`
@@ -46,7 +53,9 @@ class GPTLearnedPositionalEmbedding(nn.Module):
         :return: The sum of the positional, word and token type embeddings
         """
         embed = self.word_embeddings(x)
-        position = self.position_embeddings(torch.arange(x.shape[-1], dtype=x.dtype).to(x.device)).unsqueeze(0)
+        position = self.position_embeddings(
+            torch.arange(x.shape[-1], dtype=x.dtype).to(x.device)
+        ).unsqueeze(0)
         return self.maybe_dropout(embed + position)
 
     @property
@@ -120,7 +129,10 @@ class GPTTransformerLM(TransformerEncoder):
         return nn.CrossEntropyLoss(ignore_index=0)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        token_type: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
@@ -196,7 +208,10 @@ class GPT2TransformerLM(PreLayerNormTransformerEncoder):
         return nn.CrossEntropyLoss(ignore_index=0)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        token_type: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
@@ -287,7 +302,10 @@ class GPT2TransformerPooledEncoder(PreLayerNormTransformerEncoder):
         self.apply(self.init_layer_weights)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        token_type: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
 
@@ -328,51 +346,59 @@ class GPTCreator:
 
         for field_name in hf_field_names:
 
-            if 'mlp.c_fc.weight' in field_name:
+            if "mlp.c_fc.weight" in field_name:
                 gpt_state_dict[field_name] = gpt_state_dict[field_name].T
-            if 'mlp.c_proj.weight' in field_name:
+            if "mlp.c_proj.weight" in field_name:
                 gpt_state_dict[field_name] = gpt_state_dict[field_name].T
-            new_field_name = field_name.replace('tokens_embed', 'embeddings.word_embeddings')
-            new_field_name = new_field_name.replace('positions_embed', 'embeddings.position_embeddings')
-            new_field_name = new_field_name.replace('h.', 'encoder.')
-            new_field_name = new_field_name.replace('.attn', '.self_attention')
-            new_field_name = new_field_name.replace('mlp.c_fc', 'ffn.0')
-            new_field_name = new_field_name.replace('mlp.c_proj', 'ffn.2')
-            new_field_name = new_field_name.replace('.c_attn.weight', '')
-            new_field_name = new_field_name.replace('.c_attn.bias', '')
-            new_field_name = new_field_name.replace('.c_proj.weight', '')
-            new_field_name = new_field_name.replace('.c_proj.bias', '')
+            new_field_name = field_name.replace(
+                "tokens_embed", "embeddings.word_embeddings"
+            )
+            new_field_name = new_field_name.replace(
+                "positions_embed", "embeddings.position_embeddings"
+            )
+            new_field_name = new_field_name.replace("h.", "encoder.")
+            new_field_name = new_field_name.replace(".attn", ".self_attention")
+            new_field_name = new_field_name.replace("mlp.c_fc", "ffn.0")
+            new_field_name = new_field_name.replace("mlp.c_proj", "ffn.2")
+            new_field_name = new_field_name.replace(".c_attn.weight", "")
+            new_field_name = new_field_name.replace(".c_attn.bias", "")
+            new_field_name = new_field_name.replace(".c_proj.weight", "")
+            new_field_name = new_field_name.replace(".c_proj.bias", "")
 
-            new_field_name = new_field_name.replace('ln_1', 'self_attention_layer_norm')
-            new_field_name = new_field_name.replace('ln_2', 'output_layer_norm')
-            if 'attn.c_attn.weight' in field_name:
+            new_field_name = new_field_name.replace("ln_1", "self_attention_layer_norm")
+            new_field_name = new_field_name.replace("ln_2", "output_layer_norm")
+            if "attn.c_attn.weight" in field_name:
                 q, k, v = torch.chunk(gpt_state_dict[field_name].T, 3, dim=0)
-                remap[f'{new_field_name}.query.weight'] = q
-                tlm_field_names.remove(f'{new_field_name}.query.weight')
-                remap[f'{new_field_name}.key.weight'] = k
-                tlm_field_names.remove(f'{new_field_name}.key.weight')
-                remap[f'{new_field_name}.value.weight'] = v
-                tlm_field_names.remove(f'{new_field_name}.value.weight')
+                remap[f"{new_field_name}.query.weight"] = q
+                tlm_field_names.remove(f"{new_field_name}.query.weight")
+                remap[f"{new_field_name}.key.weight"] = k
+                tlm_field_names.remove(f"{new_field_name}.key.weight")
+                remap[f"{new_field_name}.value.weight"] = v
+                tlm_field_names.remove(f"{new_field_name}.value.weight")
                 unused_checkpoint_fields.remove(field_name)
-            elif 'attn.c_proj.weight' in field_name:
-                remap[f'{new_field_name}.output.weight'] = gpt_state_dict[field_name].T
+            elif "attn.c_proj.weight" in field_name:
+                remap[f"{new_field_name}.output.weight"] = gpt_state_dict[field_name].T
                 unused_checkpoint_fields.remove(field_name)
-                tlm_field_names.remove(f'{new_field_name}.output.weight')
-            elif 'attn.c_attn.bias' in field_name:
+                tlm_field_names.remove(f"{new_field_name}.output.weight")
+            elif "attn.c_attn.bias" in field_name:
                 q, k, v = torch.chunk(gpt_state_dict[field_name], 3, dim=0)
-                remap[f'{new_field_name}.query.bias'] = q
-                tlm_field_names.remove(f'{new_field_name}.query.bias')
-                remap[f'{new_field_name}.key.bias'] = k
-                tlm_field_names.remove(f'{new_field_name}.key.bias')
-                remap[f'{new_field_name}.value.bias'] = v
-                tlm_field_names.remove(f'{new_field_name}.value.bias')
+                remap[f"{new_field_name}.query.bias"] = q
+                tlm_field_names.remove(f"{new_field_name}.query.bias")
+                remap[f"{new_field_name}.key.bias"] = k
+                tlm_field_names.remove(f"{new_field_name}.key.bias")
+                remap[f"{new_field_name}.value.bias"] = v
+                tlm_field_names.remove(f"{new_field_name}.value.bias")
                 unused_checkpoint_fields.remove(field_name)
-            elif 'attn.c_proj.bias' in field_name:
-                remap[f'{new_field_name}.output.bias'] = gpt_state_dict[field_name]
-                tlm_field_names.remove(f'{new_field_name}.output.bias')
+            elif "attn.c_proj.bias" in field_name:
+                remap[f"{new_field_name}.output.bias"] = gpt_state_dict[field_name]
+                tlm_field_names.remove(f"{new_field_name}.output.bias")
                 unused_checkpoint_fields.remove(field_name)
-            elif 'attn.bias' in field_name:
-                assert (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask).all().item()
+            elif "attn.bias" in field_name:
+                assert (
+                    (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask)
+                    .all()
+                    .item()
+                )
                 unused_checkpoint_fields.remove(field_name)
 
             if new_field_name in tlm_field_names:
@@ -386,23 +412,29 @@ class GPTCreator:
     @classmethod
     def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
         try:
-            embeddings_weight = hf_dict[[k for k in hf_dict if 'tokens_embed.weight' in k][0]]
+            embeddings_weight = hf_dict[
+                [k for k in hf_dict if "tokens_embed.weight" in k][0]
+            ]
         except:
-            embeddings_weight = hf_dict[[k for k in hf_dict if 'embeddings.word_embeddings.weight' in k][0]]
+            embeddings_weight = hf_dict[
+                [k for k in hf_dict if "embeddings.word_embeddings.weight" in k][0]
+            ]
         return embeddings_weight.shape
 
     @classmethod
-    def lm_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+    def lm_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = GPTCreator.get_vocab_and_hidden_dims(hf_dict)
         tlm = GPTTransformerLM(vocab_size, **kwargs)
         missing, unused = GPTCreator.convert_state_dict(tlm, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return tlm
 
 
@@ -417,53 +449,57 @@ class GPT2Creator:
 
         for field_name in hf_field_names:
 
-            if 'mlp.c_fc.weight' in field_name:
+            if "mlp.c_fc.weight" in field_name:
                 gpt_state_dict[field_name] = gpt_state_dict[field_name].T
-            if 'mlp.c_proj.weight' in field_name:
+            if "mlp.c_proj.weight" in field_name:
                 gpt_state_dict[field_name] = gpt_state_dict[field_name].T
-            new_field_name = field_name.replace('wte', 'embeddings.word_embeddings')
-            new_field_name = new_field_name.replace('wpe', 'embeddings.position_embeddings')
-            new_field_name = new_field_name.replace('h.', 'encoder.')
-            new_field_name = new_field_name.replace('.attn', '.self_attention')
-            new_field_name = new_field_name.replace('mlp.c_fc', 'ffn.0')
-            new_field_name = new_field_name.replace('mlp.c_proj', 'ffn.2')
-            new_field_name = new_field_name.replace('.c_attn.weight', '')
-            new_field_name = new_field_name.replace('.c_attn.bias', '')
-            new_field_name = new_field_name.replace('.c_proj.weight', '')
-            new_field_name = new_field_name.replace('.c_proj.bias', '')
+            new_field_name = field_name.replace("wte", "embeddings.word_embeddings")
+            new_field_name = new_field_name.replace(
+                "wpe", "embeddings.position_embeddings"
+            )
+            new_field_name = new_field_name.replace("h.", "encoder.")
+            new_field_name = new_field_name.replace(".attn", ".self_attention")
+            new_field_name = new_field_name.replace("mlp.c_fc", "ffn.0")
+            new_field_name = new_field_name.replace("mlp.c_proj", "ffn.2")
+            new_field_name = new_field_name.replace(".c_attn.weight", "")
+            new_field_name = new_field_name.replace(".c_attn.bias", "")
+            new_field_name = new_field_name.replace(".c_proj.weight", "")
+            new_field_name = new_field_name.replace(".c_proj.bias", "")
 
-            new_field_name = new_field_name.replace('ln_1', 'self_attention_layer_norm')
-            new_field_name = new_field_name.replace('ln_2', 'output_layer_norm')
-            new_field_name = new_field_name.replace('ln_f', 'layer_norm')
-            if 'attn.c_attn.weight' in field_name:
+            new_field_name = new_field_name.replace("ln_1", "self_attention_layer_norm")
+            new_field_name = new_field_name.replace("ln_2", "output_layer_norm")
+            new_field_name = new_field_name.replace("ln_f", "layer_norm")
+            if "attn.c_attn.weight" in field_name:
                 q, k, v = torch.chunk(gpt_state_dict[field_name].T, 3, dim=0)
-                remap[f'{new_field_name}.query.weight'] = q
-                tlm_field_names.remove(f'{new_field_name}.query.weight')
-                remap[f'{new_field_name}.key.weight'] = k
-                tlm_field_names.remove(f'{new_field_name}.key.weight')
-                remap[f'{new_field_name}.value.weight'] = v
-                tlm_field_names.remove(f'{new_field_name}.value.weight')
+                remap[f"{new_field_name}.query.weight"] = q
+                tlm_field_names.remove(f"{new_field_name}.query.weight")
+                remap[f"{new_field_name}.key.weight"] = k
+                tlm_field_names.remove(f"{new_field_name}.key.weight")
+                remap[f"{new_field_name}.value.weight"] = v
+                tlm_field_names.remove(f"{new_field_name}.value.weight")
                 unused_checkpoint_fields.remove(field_name)
-            elif 'attn.c_proj.weight' in field_name:
-                remap[f'{new_field_name}.output.weight'] = gpt_state_dict[field_name].T
+            elif "attn.c_proj.weight" in field_name:
+                remap[f"{new_field_name}.output.weight"] = gpt_state_dict[field_name].T
                 unused_checkpoint_fields.remove(field_name)
-                tlm_field_names.remove(f'{new_field_name}.output.weight')
-            elif 'attn.c_attn.bias' in field_name:
+                tlm_field_names.remove(f"{new_field_name}.output.weight")
+            elif "attn.c_attn.bias" in field_name:
                 q, k, v = torch.chunk(gpt_state_dict[field_name], 3, dim=0)
-                remap[f'{new_field_name}.query.bias'] = q
-                tlm_field_names.remove(f'{new_field_name}.query.bias')
-                remap[f'{new_field_name}.key.bias'] = k
-                tlm_field_names.remove(f'{new_field_name}.key.bias')
-                remap[f'{new_field_name}.value.bias'] = v
-                tlm_field_names.remove(f'{new_field_name}.value.bias')
+                remap[f"{new_field_name}.query.bias"] = q
+                tlm_field_names.remove(f"{new_field_name}.query.bias")
+                remap[f"{new_field_name}.key.bias"] = k
+                tlm_field_names.remove(f"{new_field_name}.key.bias")
+                remap[f"{new_field_name}.value.bias"] = v
+                tlm_field_names.remove(f"{new_field_name}.value.bias")
                 unused_checkpoint_fields.remove(field_name)
-            elif 'attn.c_proj.bias' in field_name:
-                remap[f'{new_field_name}.output.bias'] = gpt_state_dict[field_name]
-                tlm_field_names.remove(f'{new_field_name}.output.bias')
+            elif "attn.c_proj.bias" in field_name:
+                remap[f"{new_field_name}.output.bias"] = gpt_state_dict[field_name]
+                tlm_field_names.remove(f"{new_field_name}.output.bias")
                 unused_checkpoint_fields.remove(field_name)
-            elif 'attn.bias' in field_name:
+            elif "attn.bias" in field_name:
                 assert (
-                    (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask).all().item()
+                    (gpt_state_dict[field_name].squeeze().squeeze() == tlm.causal_mask)
+                    .all()
+                    .item()
                 )  # torch.tril(torch.ones(gpt_state_dict[field_name].shape[-1], gpt_state_dict[field_name].shape[-1]))).all().item()
                 unused_checkpoint_fields.remove(field_name)
 
@@ -479,36 +515,42 @@ class GPT2Creator:
     def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
         try:
 
-            embeddings_weight = hf_dict[[k for k in hf_dict if 'wte.weight' in k][0]]
+            embeddings_weight = hf_dict[[k for k in hf_dict if "wte.weight" in k][0]]
         except:
-            embeddings_weight = hf_dict[[k for k in hf_dict if 'embeddings.word_embeddings.weight' in k][0]]
+            embeddings_weight = hf_dict[
+                [k for k in hf_dict if "embeddings.word_embeddings.weight" in k][0]
+            ]
 
         return embeddings_weight.shape
 
     @classmethod
-    def lm_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+    def lm_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = GPT2Creator.get_vocab_and_hidden_dims(hf_dict)
         tlm = GPT2TransformerLM(vocab_size, **kwargs)
         missing, unused = GPT2Creator.convert_state_dict(tlm, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return tlm
 
     @classmethod
-    def pooled_enc_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, pool_id=None, **kwargs):
+    def pooled_enc_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, pool_id=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = GPT2Creator.get_vocab_and_hidden_dims(hf_dict)
         enc = GPT2TransformerPooledEncoder(vocab_size, pool_id=pool_id, **kwargs)
         missing, unused = GPT2Creator.convert_state_dict(enc, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return enc

@@ -49,7 +49,7 @@ class PairedTextTrainer:
 
     def valid_epoch(self, valid_loader, phase="valid"):
         self.model.eval()
-        valid_loss = Average('valid_loss')
+        valid_loss = Average("valid_loss")
         progress = tqdm(enumerate(valid_loader), total=len(valid_loader))
         valid_correct = 0
         valid_total = 0
@@ -71,7 +71,7 @@ class PairedTextTrainer:
 
     def train_epoch(self, train_loader):
         self.model.train()
-        train_loss = Average('train_loss')
+        train_loss = Average("train_loss")
 
         warmup_steps = 1
         if self.epoch == 0:
@@ -108,7 +108,9 @@ class DualEncoderTrainer(PairedTextTrainer):
         x1 = x1.to(self.device)
         x2 = x2.to(self.device)
         y = y.to(self.device)
-        y_pred = self.model(x1, x2, self.model.create_pad_mask(x1), self.model.create_pad_mask(x2))
+        y_pred = self.model(
+            x1, x2, self.model.create_pad_mask(x1), self.model.create_pad_mask(x2)
+        )
         loss = self.loss_function(y_pred, y)
         return loss, y, y_pred
 
@@ -117,7 +119,9 @@ class DualEncoderTrainer(PairedTextTrainer):
         x1 = x1.to(self.device)
         x2 = x2.to(self.device)
         y = y.to(self.device)
-        y_pred = self.model(x1, x2, self.model.create_pad_mask(x1), self.model.create_pad_mask(x2))
+        y_pred = self.model(
+            x1, x2, self.model.create_pad_mask(x1), self.model.create_pad_mask(x2)
+        )
         loss = self.loss_function(y_pred, y)
         return loss, y, y_pred
 
@@ -169,9 +173,14 @@ def read_jsonl_dual_cls_dataset(
         padded[1][: len(tokens[1])] = tokens[1]
         return padded + [label]
 
-    if os.path.exists(file + ".x1.th") and os.path.exists(file + ".x2.th") and os.path.exists(file + ".y.th"):
+    if (
+        os.path.exists(file + ".x1.th")
+        and os.path.exists(file + ".x2.th")
+        and os.path.exists(file + ".y.th")
+    ):
         logger.info(
-            "Found cached tensor files, reloading.  If you dont want this, delete *.th from %s", os.path.dirname(file)
+            "Found cached tensor files, reloading.  If you dont want this, delete *.th from %s",
+            os.path.dirname(file),
         )
         x1_tensor = torch.load(file + ".x1.th")
         x2_tensor = torch.load(file + ".x2.th")
@@ -227,9 +236,14 @@ def read_jsonl_cross_cls_dataset(
         padded[: len(tokens)] = tokens
         return [padded, tt] + [label]
 
-    if os.path.exists(file + ".x.th") and os.path.exists(file + ".x.th") and os.path.exists(file + ".y.th"):
+    if (
+        os.path.exists(file + ".x.th")
+        and os.path.exists(file + ".x.th")
+        and os.path.exists(file + ".y.th")
+    ):
         logger.info(
-            "Found cached tensor files, reloading.  If you dont want this, delete *.th from %s", os.path.dirname(file)
+            "Found cached tensor files, reloading.  If you dont want this, delete *.th from %s",
+            os.path.dirname(file),
         )
         x_tensor = torch.load(file + ".x.th")
         tt_tensor = torch.load(file + ".tt.th")
@@ -276,17 +290,28 @@ def trim_to_shortest_len_cross(batch):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='fine-tune BERT for classification (dual text input only)')
+    parser = argparse.ArgumentParser(
+        description="fine-tune BERT for classification (dual text input only)"
+    )
     parser.add_argument("--model", type=str)
     parser.add_argument("--train_file", type=str, required=True)
     parser.add_argument("--valid_file", type=str, required=True)
     parser.add_argument("--test_file", type=str)
-    parser.add_argument("--hidden_size", type=int, default=768, help="Model dimension (and embedding dsz)")
+    parser.add_argument(
+        "--hidden_size",
+        type=int,
+        default=768,
+        help="Model dimension (and embedding dsz)",
+    )
     parser.add_argument("--feed_forward_size", type=int, help="FFN dimension")
     parser.add_argument("--num_heads", type=int, default=12, help="Number of heads")
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers")
-    parser.add_argument("--num_train_workers", type=int, default=4, help="Number train workers")
-    parser.add_argument("--num_valid_workers", type=int, default=1, help="Number train workers")
+    parser.add_argument(
+        "--num_train_workers", type=int, default=4, help="Number train workers"
+    )
+    parser.add_argument(
+        "--num_valid_workers", type=int, default=1, help="Number train workers"
+    )
     parser.add_argument("--max_seq_len", type=int, default=512, help="Max input length")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch Size")
     parser.add_argument(
@@ -295,16 +320,28 @@ def main():
         default="dual-encoder",
         help="Train a dual-encoder or a cross-encoder",
     )
-    parser.add_argument("--vocab_file", type=str, help="The WordPiece model file", required=True)
+    parser.add_argument(
+        "--vocab_file", type=str, help="The WordPiece model file", required=True
+    )
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
     parser.add_argument("--lowercase", action="store_true", help="Vocab is lower case")
     parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
-    parser.add_argument("--ckpt_base", type=str, default='ckpt')
+    parser.add_argument("--ckpt_base", type=str, default="ckpt")
     parser.add_argument("--num_epochs", type=int, default=1)
-    parser.add_argument("--label_names", type=str, nargs="+", default=["contradiction", "neutral", "entailment"])
-    parser.add_argument("--col_names", type=str, nargs="+", default=["label", "sentence1", "sentence2"])
     parser.add_argument(
-        "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)"
+        "--label_names",
+        type=str,
+        nargs="+",
+        default=["contradiction", "neutral", "entailment"],
+    )
+    parser.add_argument(
+        "--col_names", type=str, nargs="+", default=["label", "sentence1", "sentence2"]
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda" if torch.cuda.is_available() else "cpu",
+        help="Device (cuda or cpu)",
     )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
@@ -344,19 +381,21 @@ def main():
     num_classes = len(labels)
     loss_function = torch.nn.CrossEntropyLoss().to(args.device)
     if args.encoder_type == "dual-encoder":
-        model = BertCreator.dual_encoder_from_pretrained(args.model, num_classes=num_classes, **vars(args)).to(
-            args.device
-        )
+        model = BertCreator.dual_encoder_from_pretrained(
+            args.model, num_classes=num_classes, **vars(args)
+        ).to(args.device)
         trainer = DualEncoderTrainer(model, loss_function, args.device, args.lr)
     else:
         num_classes = len(labels)
         output_layer = torch.nn.Linear(args.hidden_size, num_classes)
-        model = BertCreator.pooled_enc_from_pretrained(args.model, output=output_layer, **vars(args)).to(args.device)
+        model = BertCreator.pooled_enc_from_pretrained(
+            args.model, output=output_layer, **vars(args)
+        ).to(args.device)
         trainer = CrossEncoderTrainer(model, loss_function, args.device, args.lr)
 
     best_valid_acc = 0.0
 
-    checkpoint_name = args.ckpt_base + '.pth'
+    checkpoint_name = args.ckpt_base + ".pth"
     for epoch in range(args.num_epochs):
         trainer.train_epoch(train_loader)
 
@@ -379,14 +418,16 @@ def main():
         label_list=labels,
     )
     if len(final_labels) != num_classes:
-        raise Exception("The test set adds new classes with no samples in the training or validation")
+        raise Exception(
+            "The test set adds new classes with no samples in the training or validation"
+        )
     test_loader = torch.utils.data.DataLoader(
         test_set, batch_size=args.batch_size, shuffle=False, collate_fn=trim_batch_fn
     )
 
     best_state = torch.load(checkpoint_name)
     model.load_state_dict(best_state)
-    eval_fract = trainer.valid_epoch(test_loader, phase='test')
+    eval_fract = trainer.valid_epoch(test_loader, phase="test")
     eval_acc = 100.0 * eval_fract
     print(f"final test accuracy {eval_acc:.2f}%")
 
