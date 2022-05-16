@@ -4,7 +4,7 @@ from typing import Optional, Callable
 from mint.common import DefaultLayerFactory, WeightTiedVocabProjection
 import logging
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 
 class TransformerEncoderLayer(nn.Module):
@@ -45,9 +45,15 @@ class TransformerEncoderLayer(nn.Module):
         self.hidden_size = hidden_size
         self.dropout = dropout
         self.d_ff = feed_forward_size
-        self.self_attention = layer_factory.encoder_multihead_attention(hidden_size, num_heads)
-        self.self_attention_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
-        self.ffn = layer_factory.feed_forward(hidden_size, feed_forward_size, activation)
+        self.self_attention = layer_factory.encoder_multihead_attention(
+            hidden_size, num_heads
+        )
+        self.self_attention_layer_norm = layer_factory.layer_norm(
+            hidden_size, layer_norm_eps
+        )
+        self.ffn = layer_factory.feed_forward(
+            hidden_size, feed_forward_size, activation
+        )
         self.output_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
 
     def maybe_dropout(self, x: torch.Tensor) -> torch.Tensor:
@@ -68,7 +74,9 @@ class TransformerEncoderLayer(nn.Module):
         :param mask: An optional attention mask.  True where the input is valid, and false where it isnt
         :return: The output of the block
         """
-        y = self.self_attention_layer_norm(x + self.maybe_dropout(self.self_attention(x, mask)))
+        y = self.self_attention_layer_norm(
+            x + self.maybe_dropout(self.self_attention(x, mask))
+        )
         y = self.output_layer_norm(y + self.maybe_dropout(self.ffn(y)))
         return y
 
@@ -122,13 +130,23 @@ class TransformerEncoder(nn.Module):
             layer_factory = DefaultLayerFactory.get_instance()
 
         self.embeddings_layer_norm = (
-            layer_factory.layer_norm(hidden_size, layer_norm_eps) if do_embeddings_layer_norm else nn.Identity()
+            layer_factory.layer_norm(hidden_size, layer_norm_eps)
+            if do_embeddings_layer_norm
+            else nn.Identity()
         )
-        self.embeddings = EmbeddingClass(vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len)
+        self.embeddings = EmbeddingClass(
+            vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
+        )
         self.encoder = nn.ModuleList(
             [
                 TransformerEncoderLayer(
-                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                    hidden_size,
+                    num_heads,
+                    dropout,
+                    layer_norm_eps,
+                    activation,
+                    feed_forward_size,
+                    layer_factory,
                 )
                 for _ in range(num_layers)
             ]
@@ -160,7 +178,10 @@ class TransformerEncoder(nn.Module):
         return mask.unsqueeze(1).unsqueeze(1).to(device=x.device)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        token_type: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
 
@@ -184,7 +205,10 @@ class TransformerEncoder(nn.Module):
         """
         if isinstance(module, (nn.Linear, nn.Embedding, self.LayerNormImpl)):
             module.weight.data.normal_(mean=0.0, std=0.02)
-        if isinstance(module, (nn.Linear, self.LayerNormImpl)) and module.bias is not None:
+        if (
+            isinstance(module, (nn.Linear, self.LayerNormImpl))
+            and module.bias is not None
+        ):
             module.bias.data.zero_()
 
 
@@ -227,11 +251,21 @@ class TransformerDecoderLayer(nn.Module):
         self.d_ff = feed_forward_size
         if layer_factory is None:
             layer_factory = DefaultLayerFactory.get_instance()
-        self.self_attention = layer_factory.decoder_multihead_attention(hidden_size, num_heads)
-        self.self_attention_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
-        self.encoder_attention = layer_factory.encoder_decoder_attention(hidden_size, num_heads)
-        self.encoder_attention_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
-        self.ffn = layer_factory.feed_forward(hidden_size, feed_forward_size, activation)
+        self.self_attention = layer_factory.decoder_multihead_attention(
+            hidden_size, num_heads
+        )
+        self.self_attention_layer_norm = layer_factory.layer_norm(
+            hidden_size, layer_norm_eps
+        )
+        self.encoder_attention = layer_factory.encoder_decoder_attention(
+            hidden_size, num_heads
+        )
+        self.encoder_attention_layer_norm = layer_factory.layer_norm(
+            hidden_size, layer_norm_eps
+        )
+        self.ffn = layer_factory.feed_forward(
+            hidden_size, feed_forward_size, activation
+        )
         self.output_layer_norm = layer_factory.layer_norm(hidden_size, layer_norm_eps)
 
     def maybe_dropout(self, x: torch.Tensor) -> torch.Tensor:
@@ -258,8 +292,12 @@ class TransformerDecoderLayer(nn.Module):
         :param mask: An optional attention mask.  True where the input is valid, and false where it isnt
         :return: The output of the block
         """
-        y = self.self_attention_layer_norm(dst + self.maybe_dropout(self.self_attention(dst, dst_mask)))
-        y = self.encoder_attention_layer_norm(y + self.maybe_dropout(self.encoder_attention(src, y, src_mask)))
+        y = self.self_attention_layer_norm(
+            dst + self.maybe_dropout(self.self_attention(dst, dst_mask))
+        )
+        y = self.encoder_attention_layer_norm(
+            y + self.maybe_dropout(self.encoder_attention(src, y, src_mask))
+        )
         y = self.output_layer_norm(y + self.maybe_dropout(self.ffn(y)))
         return y
 
@@ -311,10 +349,14 @@ class TransformerEncoderDecoder(nn.Module):
         if layer_factory is None:
             layer_factory = DefaultLayerFactory.get_instance()
         self.encoder_embeddings_layer_norm = (
-            layer_factory.layer_norm(hidden_size, layer_norm_eps) if do_embeddings_layer_norm else nn.Identity()
+            layer_factory.layer_norm(hidden_size, layer_norm_eps)
+            if do_embeddings_layer_norm
+            else nn.Identity()
         )
         self.decoder_embeddings_layer_norm = (
-            layer_factory.layer_norm(hidden_size, layer_norm_eps) if do_embeddings_layer_norm else nn.Identity()
+            layer_factory.layer_norm(hidden_size, layer_norm_eps)
+            if do_embeddings_layer_norm
+            else nn.Identity()
         )
         self.encoder_embeddings = EmbeddingClass(
             vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
@@ -323,12 +365,20 @@ class TransformerEncoderDecoder(nn.Module):
             vocab_size, hidden_size, padding_idx=padding_idx, max_seq_len=max_seq_len
         )
 
-        self.decoder_embeddings.word_embeddings = self.encoder_embeddings.word_embeddings
+        self.decoder_embeddings.word_embeddings = (
+            self.encoder_embeddings.word_embeddings
+        )
 
         self.encoder = nn.ModuleList(
             [
                 TransformerEncoderLayer(
-                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                    hidden_size,
+                    num_heads,
+                    dropout,
+                    layer_norm_eps,
+                    activation,
+                    feed_forward_size,
+                    layer_factory,
                 )
                 for _ in range(num_encoder_layers)
             ]
@@ -336,7 +386,13 @@ class TransformerEncoderDecoder(nn.Module):
         self.decoder = nn.ModuleList(
             [
                 TransformerDecoderLayer(
-                    hidden_size, num_heads, dropout, layer_norm_eps, activation, feed_forward_size, layer_factory
+                    hidden_size,
+                    num_heads,
+                    dropout,
+                    layer_norm_eps,
+                    activation,
+                    feed_forward_size,
+                    layer_factory,
                 )
                 for _ in range(num_decoder_layers)
             ]
@@ -402,7 +458,13 @@ class TransformerEncoderDecoder(nn.Module):
         dst_enc = self.decode(src_enc, dst, src_mask, dst_mask)
         return dst_enc
 
-    def decode(self, src_enc, dst, src_mask: Optional[torch.Tensor] = None, dst_mask: Optional[torch.Tensor] = None):
+    def decode(
+        self,
+        src_enc,
+        dst,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
+    ):
         futures_mask = self.causal_mask[:, :, : dst.shape[1], : dst.shape[1]]
         if dst_mask is not None:
             futures_mask = dst_mask & futures_mask.to(dtype=torch.bool)
@@ -412,7 +474,9 @@ class TransformerEncoderDecoder(nn.Module):
             dst_enc = t(src_enc, dst_enc, src_mask, futures_mask)
         return dst_enc
 
-    def encode(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def encode(
+        self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         src_enc = self.encoder_embeddings(src)
         src_enc = self.encoder_embeddings_layer_norm(src_enc)
         for t in self.encoder:
@@ -428,7 +492,10 @@ class TransformerEncoderDecoder(nn.Module):
         """
         if isinstance(module, (nn.Linear, nn.Embedding, self.LayerNormImpl)):
             module.weight.data.normal_(mean=0.0, std=0.02)
-        if isinstance(module, (nn.Linear, self.LayerNormImpl)) and module.bias is not None:
+        if (
+            isinstance(module, (nn.Linear, self.LayerNormImpl))
+            and module.bias is not None
+        ):
             module.bias.data.zero_()
 
 
@@ -476,9 +543,17 @@ class TransformerSequenceGenerator(TransformerEncoderDecoder):
             do_embeddings_layer_norm,
             layer_factory,
         )
-        self.output_proj = WeightTiedVocabProjection(self.decoder_embeddings.word_embeddings)
+        self.output_proj = WeightTiedVocabProjection(
+            self.decoder_embeddings.word_embeddings
+        )
         self.apply(self.init_layer_weights)
 
-    def decode(self, src_enc, dst, src_mask: Optional[torch.Tensor] = None, dst_mask: Optional[torch.Tensor] = None):
+    def decode(
+        self,
+        src_enc,
+        dst,
+        src_mask: Optional[torch.Tensor] = None,
+        dst_mask: Optional[torch.Tensor] = None,
+    ):
         dst_enc = super().decode(src_enc, dst, src_mask, dst_mask)
         return self.output_proj(dst_enc)

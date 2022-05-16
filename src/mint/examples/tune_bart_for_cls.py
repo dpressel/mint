@@ -31,7 +31,7 @@ If there is a `test_file` provided in the args, we will run an evaluation on our
 
 def valid_epoch(epoch, loss_function, model, valid_loader, device, phase="valid"):
     model.eval()
-    valid_loss = Average('valid_loss')
+    valid_loss = Average("valid_loss")
     progress = tqdm(enumerate(valid_loader), total=len(valid_loader))
     valid_correct = 0
     valid_total = 0
@@ -57,7 +57,7 @@ def valid_epoch(epoch, loss_function, model, valid_loader, device, phase="valid"
 
 def train_epoch(epoch, loss_function, model, optimizer, train_loader, device):
     model.train()
-    train_loss = Average('train_loss')
+    train_loss = Average("train_loss")
     progress = tqdm(enumerate(train_loader), total=len(train_loader))
     train_correct = 0
     train_total = 0
@@ -88,36 +88,59 @@ def trim_to_shortest_len(batch):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='fine-tune BERT for classification (single text input only)')
+    parser = argparse.ArgumentParser(
+        description="fine-tune BERT for classification (single text input only)"
+    )
     parser.add_argument("--model", type=str)
     parser.add_argument("--train_file", type=str, required=True)
     parser.add_argument("--valid_file", type=str, required=True)
     parser.add_argument("--test_file", type=str)
-    parser.add_argument("--hidden_size", type=int, default=768, help="Model dimension (and embedding dsz)")
+    parser.add_argument(
+        "--hidden_size",
+        type=int,
+        default=768,
+        help="Model dimension (and embedding dsz)",
+    )
     parser.add_argument("--feed_forward_size", type=int, help="FFN dimension")
     parser.add_argument("--num_heads", type=int, default=12, help="Number of heads")
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers")
-    parser.add_argument("--num_train_workers", type=int, default=4, help="Number train workers")
-    parser.add_argument("--num_valid_workers", type=int, default=1, help="Number train workers")
-    parser.add_argument("--max_seq_len", type=int, default=1024, help="Max input length")
+    parser.add_argument(
+        "--num_train_workers", type=int, default=4, help="Number train workers"
+    )
+    parser.add_argument(
+        "--num_valid_workers", type=int, default=1, help="Number train workers"
+    )
+    parser.add_argument(
+        "--max_seq_len", type=int, default=1024, help="Max input length"
+    )
     parser.add_argument("--batch_size", type=int, default=20, help="Batch Size")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
-    parser.add_argument("--tok_file", type=str, required=True, help="Path to tokenizer.json file")
+    parser.add_argument(
+        "--tok_file", type=str, required=True, help="Path to tokenizer.json file"
+    )
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
-    parser.add_argument("--ckpt_base", type=str, default='ckpt-')
+    parser.add_argument("--ckpt_base", type=str, default="ckpt-")
     parser.add_argument("--num_epochs", type=int, default=5)
     parser.add_argument(
-        "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)"
+        "--device",
+        type=str,
+        default="cuda" if torch.cuda.is_available() else "cpu",
+        help="Device (cuda or cpu)",
     )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     if os.path.isdir(args.tok_file):
-        args.tok_file = os.path.join(args.tok_file, 'tokenizer.json')
+        args.tok_file = os.path.join(args.tok_file, "tokenizer.json")
     tokenizer = Tokenizer.from_file(args.tok_file)
     # TODO: read the pad_index in
-    train_set, labels = read_cls_dataset(args.train_file, tokenizer, pad_index=1, max_seq_len=args.max_seq_len)
+    train_set, labels = read_cls_dataset(
+        args.train_file, tokenizer, pad_index=1, max_seq_len=args.max_seq_len
+    )
     train_loader = torch.utils.data.DataLoader(
-        train_set, batch_size=args.batch_size, shuffle=True, collate_fn=trim_to_shortest_len
+        train_set,
+        batch_size=args.batch_size,
+        shuffle=True,
+        collate_fn=trim_to_shortest_len,
     )
     logger.info(labels)
     valid_set, labels = read_cls_dataset(
@@ -128,17 +151,22 @@ def main():
         label_list=labels,
     )
     valid_loader = torch.utils.data.DataLoader(
-        valid_set, batch_size=args.batch_size, shuffle=False, collate_fn=trim_to_shortest_len
+        valid_set,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=trim_to_shortest_len,
     )
 
     num_classes = len(labels)
     output_layer = torch.nn.Linear(args.hidden_size, num_classes)
-    model = BartCreator.pooled_from_pretrained(args.model, output=output_layer, **vars(args)).to(args.device)
+    model = BartCreator.pooled_from_pretrained(
+        args.model, output=output_layer, **vars(args)
+    ).to(args.device)
     loss_function = torch.nn.CrossEntropyLoss().to(args.device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     logger.info(optimizer)
-    checkpoint_name = args.ckpt_base + '.pth'
+    checkpoint_name = args.ckpt_base + ".pth"
     best_valid_acc = 0.0
 
     device = args.device
@@ -164,14 +192,19 @@ def main():
         label_list=labels,
     )
     if len(final_labels) != num_classes:
-        raise Exception("The test set adds new classes with no samples in the training or validation")
+        raise Exception(
+            "The test set adds new classes with no samples in the training or validation"
+        )
     test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size=args.batch_size, shuffle=False, collate_fn=trim_to_shortest_len
+        test_set,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=trim_to_shortest_len,
     )
 
     best_state = torch.load(checkpoint_name)
     model.load_state_dict(best_state)
-    eval_fract = valid_epoch(0, loss_function, model, test_loader, device, phase='test')
+    eval_fract = valid_epoch(0, loss_function, model, test_loader, device, phase="test")
     eval_acc = 100.0 * eval_fract
     print(f"final test accuracy {eval_acc:.2f}%")
 

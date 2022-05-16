@@ -4,7 +4,7 @@ from typing import Optional
 import math
 import logging
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 
 class WeightTiedVocabProjection(nn.Module):
@@ -62,7 +62,9 @@ class MultiHeadedAttention(nn.Module):
         self.d_k = d_k
         self.scale = 1 / math.sqrt(d_k)
 
-    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """
 
         :param x: A `[B, T, C]` tensor where B is batch, T is time, C is hidden size
@@ -114,7 +116,9 @@ class MultiHeadedEncoderDecoderAttention(nn.Module):
         self.d_k = d_k
         self.scale = 1 / math.sqrt(d_k)
 
-    def forward(self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, src: torch.Tensor, dst: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """
 
         :param src: A `[B, T_k, C]` tensor where B is batch, T_k is time, C is hidden size
@@ -143,7 +147,9 @@ class MultiHeadedEncoderDecoderAttention(nn.Module):
 
 
 def create_feed_forward_layer(
-    hidden_size: int, feed_forward_size: Optional[int] = None, activation: nn.Module = nn.GELU()
+    hidden_size: int,
+    feed_forward_size: Optional[int] = None,
+    activation: nn.Module = nn.GELU(),
 ):
     """Create a feed-forward layer (called FFN in the paper)
 
@@ -155,7 +161,9 @@ def create_feed_forward_layer(
     :return: An n.Sequential that wraps the whole FFN transformation block
     """
     d_ff = feed_forward_size if feed_forward_size else 4 * hidden_size
-    return nn.Sequential(nn.Linear(hidden_size, d_ff), activation, nn.Linear(d_ff, hidden_size))
+    return nn.Sequential(
+        nn.Linear(hidden_size, d_ff), activation, nn.Linear(d_ff, hidden_size)
+    )
 
 
 class DefaultLayerFactory:

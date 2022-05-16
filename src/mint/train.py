@@ -9,11 +9,11 @@ import time
 from tqdm import tqdm
 from torch.nn.parallel import DistributedDataParallel
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 
 class Average:
-    def __init__(self, name, fmt=':f'):
+    def __init__(self, name, fmt=":f"):
         self.name = name
         self.fmt = fmt
         self.val = 0
@@ -28,7 +28,7 @@ class Average:
         self.avg = self.sum / self.count
 
     def __str__(self):
-        fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
+        fmtstr = "{name} {val" + self.fmt + "} ({avg" + self.fmt + "})"
         return fmtstr.format(**self.__dict__)
 
 
@@ -43,7 +43,7 @@ class SingleDeviceTrainer:
         weight_decay: float = 1.0e-2,
         warmup_fract: float = 0.1,
         plateau_fract: float = 0.0,
-        decay_type: str = 'cosine',
+        decay_type: str = "cosine",
         total_steps: Optional[int] = None,
         global_step: int = 0,
         alpha_decay: float = 0.0,
@@ -60,25 +60,43 @@ class SingleDeviceTrainer:
         if weight_decay == 0.0:
             parameters = model.parameters()
         else:
-            dont_decay = dont_decay_weights if dont_decay_weights else ['layer_norm.weight', 'bias']
-            params_w_wd = [p for n, p in model.named_parameters() if not any(nd in n for nd in dont_decay)]
-            params_wo_wd = [p for n, p in model.named_parameters() if any(nd in n for nd in dont_decay)]
+            dont_decay = (
+                dont_decay_weights
+                if dont_decay_weights
+                else ["layer_norm.weight", "bias"]
+            )
+            params_w_wd = [
+                p
+                for n, p in model.named_parameters()
+                if not any(nd in n for nd in dont_decay)
+            ]
+            params_wo_wd = [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in dont_decay)
+            ]
             parameters = [
-                {'params': params_w_wd, 'weight_decay': weight_decay},
-                {'params': params_wo_wd, 'weight_decay': 0.0},
+                {"params": params_w_wd, "weight_decay": weight_decay},
+                {"params": params_wo_wd, "weight_decay": 0.0},
             ]
         self.global_step = global_step
-        self.optimizer = torch.optim.AdamW(parameters, lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
+        self.optimizer = torch.optim.AdamW(
+            parameters, lr=lr, betas=betas, eps=eps, weight_decay=weight_decay
+        )
         self.lr = lr
-        self._decay = self._cosine_decay if decay_type == 'cosine' else self._linear_decay
+        self._decay = (
+            self._cosine_decay if decay_type == "cosine" else self._linear_decay
+        )
         self.warmup_fract = warmup_fract
         self.plateau_fract = plateau_fract
         self.alpha = alpha_decay
         self.model = model
         self.loss_function = (
-            model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
+            model.create_loss()
+            if hasattr(model, "create_loss")
+            else torch.nn.CrossEntropyLoss(ignore_index=0)
         )
-        self.device = 'cpu'
+        self.device = "cpu"
         self.num_train_workers = num_train_workers
         self.num_valid_workers = num_valid_workers
         if torch.cuda.is_available():
@@ -89,12 +107,20 @@ class SingleDeviceTrainer:
         self.batch_size = batch_size
         self.total_steps = total_steps
         self.collate_function = collate_function
-        logger.info("Model has {:,} parameters".format(sum(p.numel() for p in model.parameters() if p.requires_grad)))
+        logger.info(
+            "Model has {:,} parameters".format(
+                sum(p.numel() for p in model.parameters() if p.requires_grad)
+            )
+        )
 
     def __str__(self):
-        return '\n\t'.join(
+        return "\n\t".join(
             [self.__class__.__name__]
-            + [f'{k}={v}' for k, v in self.__dict__.items() if v is not None and type(v) in [str, int, float]]
+            + [
+                f"{k}={v}"
+                for k, v in self.__dict__.items()
+                if v is not None and type(v) in [str, int, float]
+            ]
         )
 
     def compute_train_steps_per_epoch(self, dataset: Dataset) -> int:
@@ -151,9 +177,11 @@ class SingleDeviceTrainer:
         self.total_steps = num_steps
         save_iter = train_cycle_size // saves_per_cycle
         iters_left = self.total_steps - self.global_step
-        current_cycle = 0 if self.global_step == 0 else (self.global_step // train_cycle_size)
+        current_cycle = (
+            0 if self.global_step == 0 else (self.global_step // train_cycle_size)
+        )
         logging.info(
-            'steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]',
+            "steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]",
             train_cycle_size,
             self.global_step,
             self.total_steps,
@@ -191,11 +219,16 @@ class SingleDeviceTrainer:
         y = [self._lr_step(step) for step in steps]
 
         fig, ax = plt.subplots(1, 1)
-        ax.set_title(f'Learning rate schedule for trainer with {total_steps} steps')
-        ax.set_xlabel('Steps')
-        ax.set_ylabel('Learning Rate')
+        ax.set_title(f"Learning rate schedule for trainer with {total_steps} steps")
+        ax.set_xlabel("Steps")
+        ax.set_ylabel("Learning Rate")
         ax.plot(steps, y, label=f"steps={total_steps}")
-        ax.plot(self.global_step, self._lr_step(self.global_step), 'go', label='last position')
+        ax.plot(
+            self.global_step,
+            self._lr_step(self.global_step),
+            "go",
+            label="last position",
+        )
         if total_steps is not None:
             self.total_steps = save_total_steps
         ax.legend()
@@ -228,10 +261,12 @@ class SingleDeviceTrainer:
         self.total_steps = steps_per_epoch * num_epochs
 
         # If our model was already run, find the closest epoch and start from there, otherwise set to 0
-        current_epoch = 0 if self.global_step == 0 else (self.global_step // steps_per_epoch) - 1
+        current_epoch = (
+            0 if self.global_step == 0 else (self.global_step // steps_per_epoch) - 1
+        )
 
         logging.info(
-            'steps per epoch [%d], global step [%d], total train steps [%d] current epoch [%d], saves per epoch [%d]',
+            "steps per epoch [%d], global step [%d], total train steps [%d] current epoch [%d], saves per epoch [%d]",
             steps_per_epoch,
             self.global_step,
             self.total_steps,
@@ -258,7 +293,9 @@ class SingleDeviceTrainer:
             # that when we break out and save
             save_iter = len(train_data_loader) // saves_per_epoch
             # Train some steps using our iterator
-            metrics = self.train_some(iter(train_data_loader), num_iters, save_iter, model_base)
+            metrics = self.train_some(
+                iter(train_data_loader), num_iters, save_iter, model_base
+            )
             # Log our metrics
             logging.info(metrics)
 
@@ -289,7 +326,9 @@ class SingleDeviceTrainer:
 
     def _linear_decay(self, global_step):
         global_step = min(global_step, self.total_steps)
-        scaled_lr = self.lr * (1.0 - self.alpha) * (1.0 - global_step / self.total_steps) + (self.alpha * self.lr)
+        scaled_lr = self.lr * (1.0 - self.alpha) * (
+            1.0 - global_step / self.total_steps
+        ) + (self.alpha * self.lr)
         return scaled_lr
 
     def _lr_step(self, global_step):
@@ -319,12 +358,11 @@ class SingleDeviceTrainer:
         :param model_base: The model base for writing checkpoints
         :return: The training metrics
         """
-        avg_loss = Average('average_train_loss')
+        avg_loss = Average("average_train_loss")
         metrics = {}
         self.optimizer.zero_grad()
-        start = time.time()
         self.model.train()
-
+        start = time.perf_counter()
         progress = tqdm(range(num_iters), total=num_iters)
         for iters in progress:
             batch = next(data_iter)
@@ -338,7 +376,9 @@ class SingleDeviceTrainer:
             self.optimizer.step()
             self.global_step += 1
             if self.global_step == self.total_steps:
-                progress.set_description(f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
+                progress.set_description(
+                    f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
+                )
                 self._save_checkpoint(model_base)
                 break
             self.optimizer.zero_grad()
@@ -346,15 +386,17 @@ class SingleDeviceTrainer:
             for p in self.optimizer.param_groups:
                 p["lr"] = self.current_lr
 
-            progress.set_description(f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}")
+            progress.set_description(
+                f"global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
+            )
 
         # How much time elapsed in minutes
         elapsed = (time.time() - start) / 60
         train_token_loss = avg_loss.avg
         train_token_ppl = math.exp(train_token_loss)
-        metrics['train_elapsed_min'] = elapsed
-        metrics['train_loss'] = train_token_loss
-        metrics['train_ppl'] = train_token_ppl
+        metrics["train_elapsed_min"] = elapsed
+        metrics["train_loss"] = train_token_loss
+        metrics["train_ppl"] = train_token_ppl
         return metrics
 
     def _eval_step(self, batch):
@@ -371,7 +413,7 @@ class SingleDeviceTrainer:
         :return: The validation metrics
         """
         self.model.eval()
-        avg_loss = Average('average_valid_loss')
+        avg_loss = Average("average_valid_loss")
         start = time.time()
         metrics = {}
         progress = tqdm(range(num_iters), total=num_iters)
@@ -380,23 +422,25 @@ class SingleDeviceTrainer:
                 batch = next(data_iter)
                 loss = self._eval_step(batch)
                 avg_loss.update(loss)
-                progress.set_description(f"validation steps {iters}: loss {avg_loss}. lr {self.current_lr:e}")
+                progress.set_description(
+                    f"validation steps {iters}: loss {avg_loss}. lr {self.current_lr:e}"
+                )
         valid_token_loss = avg_loss.avg
         valid_token_ppl = math.exp(valid_token_loss)
 
         elapsed = (time.time() - start) / 60
-        metrics['valid_elapsed_min'] = elapsed
-        metrics['average_valid_loss'] = valid_token_loss
-        metrics['average_valid_token_ppl'] = valid_token_ppl
+        metrics["valid_elapsed_min"] = elapsed
+        metrics["average_valid_loss"] = valid_token_loss
+        metrics["average_valid_token_ppl"] = valid_token_ppl
         return metrics
 
     def _checkpoint_for(self, model_base):
-        return f'{model_base}-step-{self.global_step}'
+        return f"{model_base}-step-{self.global_step}"
 
     def _save_checkpoint(self, model_base: str):
         checkpoint_name = self._checkpoint_for(model_base)
-        logging.debug('Saving checkpoint [%s]', checkpoint_name)
-        torch.save(self.model.state_dict(), checkpoint_name + '.pth')
+        logging.debug("Saving checkpoint [%s]", checkpoint_name)
+        torch.save(self.model.state_dict(), checkpoint_name + ".pth")
 
 
 class SingleDeviceLMTrainer(SingleDeviceTrainer):
@@ -448,7 +492,12 @@ class SingleDeviceSeq2SeqTrainer(SingleDeviceTrainer):
         (x, y) = batch
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
+        logits = self.model(
+            x,
+            y[:, :-1],
+            self.model.create_pad_mask(x),
+            self.model.create_pad_mask(y[:, :-1]),
+        )
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         loss.backward()
@@ -459,7 +508,12 @@ class SingleDeviceSeq2SeqTrainer(SingleDeviceTrainer):
 
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
+        logits = self.model(
+            x,
+            y[:, :-1],
+            self.model.create_pad_mask(x),
+            self.model.create_pad_mask(y[:, :-1]),
+        )
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         return loss.item()
@@ -470,7 +524,7 @@ def init_distributed(local_rank):
         # https://github.com/kubeflow/pytorch-operator/issues/128
         # https://github.com/pytorch/examples/blob/master/imagenet/main.py
         logger.info("Setting local rank to RANK env variable")
-        local_rank = int(os.environ['RANK'])
+        local_rank = int(os.environ["RANK"])
     logger.warning("Local rank (%d)", local_rank)
     # In an env like k8s with kubeflow each worker will only see a single gpu
     # with an id of 0. If the gpu count is 1 then we are probably in an env like
@@ -481,7 +535,7 @@ def init_distributed(local_rank):
     else:
         torch.cuda.set_device(local_rank)
         device = torch.device("cuda", local_rank)
-    torch.distributed.init_process_group(backend='nccl', init_method='env://')
+    torch.distributed.init_process_group(backend="nccl", init_method="env://")
     return device, local_rank
 
 
@@ -512,7 +566,7 @@ class DistributedTrainer:
         weight_decay: float = 1.0e-2,
         warmup_fract: float = 0.1,
         plateau_fract: float = 0.0,
-        decay_type: str = 'cosine',
+        decay_type: str = "cosine",
         total_steps: Optional[int] = None,
         global_step: int = 0,
         alpha_decay: float = 0.0,
@@ -530,25 +584,43 @@ class DistributedTrainer:
         if weight_decay == 0.0:
             parameters = model.parameters()
         else:
-            dont_decay = dont_decay_weights if dont_decay_weights else ['layer_norm.weight', 'bias']
-            params_w_wd = [p for n, p in model.named_parameters() if not any(nd in n for nd in dont_decay)]
-            params_wo_wd = [p for n, p in model.named_parameters() if any(nd in n for nd in dont_decay)]
+            dont_decay = (
+                dont_decay_weights
+                if dont_decay_weights
+                else ["layer_norm.weight", "bias"]
+            )
+            params_w_wd = [
+                p
+                for n, p in model.named_parameters()
+                if not any(nd in n for nd in dont_decay)
+            ]
+            params_wo_wd = [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in dont_decay)
+            ]
             parameters = [
-                {'params': params_w_wd, 'weight_decay': weight_decay},
-                {'params': params_wo_wd, 'weight_decay': 0.0},
+                {"params": params_w_wd, "weight_decay": weight_decay},
+                {"params": params_wo_wd, "weight_decay": 0.0},
             ]
         self.global_step = global_step
-        self.optimizer = torch.optim.AdamW(parameters, lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
+        self.optimizer = torch.optim.AdamW(
+            parameters, lr=lr, betas=betas, eps=eps, weight_decay=weight_decay
+        )
         self.lr = lr
-        self._decay = self._cosine_decay if decay_type == 'cosine' else self._linear_decay
+        self._decay = (
+            self._cosine_decay if decay_type == "cosine" else self._linear_decay
+        )
         self.warmup_fract = warmup_fract
         self.plateau_fract = plateau_fract
         self.alpha = alpha_decay
         self.model = model
         self.loss_function = (
-            model.create_loss() if hasattr(model, 'create_loss') else torch.nn.CrossEntropyLoss(ignore_index=0)
+            model.create_loss()
+            if hasattr(model, "create_loss")
+            else torch.nn.CrossEntropyLoss(ignore_index=0)
         )
-        self.device = 'cpu'
+        self.device = "cpu"
         self.num_train_workers = num_train_workers
         self.num_valid_workers = num_valid_workers
         self.num_gpus = get_num_gpus_multiworker()
@@ -561,7 +633,10 @@ class DistributedTrainer:
         self.loss_function = self.loss_function.to(self.device)
 
         model = DistributedDataParallel(
-            model, device_ids=[self.device], output_device=self.device, find_unused_parameters=True
+            model,
+            device_ids=[self.device],
+            output_device=self.device,
+            find_unused_parameters=True,
         )
         self.grad_clip = grad_clip
         self.batch_size = batch_size
@@ -570,13 +645,19 @@ class DistributedTrainer:
 
         if self.local_rank < 1:
             logger.info(
-                "Model has {:,} parameters".format(sum(p.numel() for p in model.parameters() if p.requires_grad))
+                "Model has {:,} parameters".format(
+                    sum(p.numel() for p in model.parameters() if p.requires_grad)
+                )
             )
 
     def __str__(self):
-        return '\n\t'.join(
+        return "\n\t".join(
             [self.__class__.__name__]
-            + [f'{k}={v}' for k, v in self.__dict__.items() if v is not None and type(v) in [str, int, float]]
+            + [
+                f"{k}={v}"
+                for k, v in self.__dict__.items()
+                if v is not None and type(v) in [str, int, float]
+            ]
         )
 
     def train_steps(
@@ -629,11 +710,13 @@ class DistributedTrainer:
         save_iter = local_iters_per_cycle // saves_per_cycle
 
         local_iters_left = self.total_steps - self.global_step
-        current_cycle = 0 if self.global_step == 0 else (self.global_step // train_cycle_size)
+        current_cycle = (
+            0 if self.global_step == 0 else (self.global_step // train_cycle_size)
+        )
 
         if self.local_rank < 1:
             logging.info(
-                'steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]',
+                "steps per cycle [%d], global step [%d], total train steps [%d] current cycle [%d], saves per cycle [%d]",
                 train_cycle_size,
                 self.global_step,
                 self.total_steps,
@@ -644,7 +727,13 @@ class DistributedTrainer:
         eval_iter = iter(eval_data_loader)
         while self.global_step < self.total_steps:
             num_iters = min(local_iters_left, local_iters_per_cycle)
-            metrics = self.train_some(train_iter, num_iters, save_iter, model_base, log_updates_per_train_cycle)
+            metrics = self.train_some(
+                train_iter,
+                num_iters,
+                save_iter,
+                model_base,
+                log_updates_per_train_cycle,
+            )
             # Log our metrics
             logging.info(metrics)
             if self.local_rank < 1:
@@ -671,11 +760,16 @@ class DistributedTrainer:
         y = [self._lr_step(step) for step in steps]
 
         fig, ax = plt.subplots(1, 1)
-        ax.set_title(f'Learning rate schedule for trainer with {total_steps} steps')
-        ax.set_xlabel('Steps')
-        ax.set_ylabel('Learning Rate')
+        ax.set_title(f"Learning rate schedule for trainer with {total_steps} steps")
+        ax.set_xlabel("Steps")
+        ax.set_ylabel("Learning Rate")
         ax.plot(steps, y, label=f"steps={total_steps}")
-        ax.plot(self.global_step, self._lr_step(self.global_step), 'go', label='last position')
+        ax.plot(
+            self.global_step,
+            self._lr_step(self.global_step),
+            "go",
+            label="last position",
+        )
         if total_steps is not None:
             self.total_steps = save_total_steps
         ax.legend()
@@ -694,7 +788,9 @@ class DistributedTrainer:
 
     def _linear_decay(self, global_step):
         global_step = min(global_step, self.total_steps)
-        scaled_lr = self.lr * (1.0 - self.alpha) * (1.0 - global_step / self.total_steps) + (self.alpha * self.lr)
+        scaled_lr = self.lr * (1.0 - self.alpha) * (
+            1.0 - global_step / self.total_steps
+        ) + (self.alpha * self.lr)
         return scaled_lr
 
     def _lr_step(self, global_step):
@@ -725,25 +821,30 @@ class DistributedTrainer:
         :param update_iter: If None, this will default to 10 updates per checkpoint
         :return: The training metrics
         """
-        avg_loss = Average('average_train_loss')
+        avg_loss = Average("average_train_loss")
+        step_time = Average("average_step_time")
         metrics = {}
         if update_iter is None:
             update_iter = save_iter // 10
         # Note that the gradients are zero'd here.  This is why we want our cycle_steps to be a multiple of grad_accum
 
-        start = time.time()
         self.model.train()
+        start = time.perf_counter()
+        step_time_start = start
         for iters in range(num_iters):
-
             self.optimizer.zero_grad()
             batch = next(data_iter)
             loss = self._train_step(batch)
             avg_loss.update(loss)
 
             if (iters + 1) % update_iter == 0:
+                elapsed = time.perf_counter() - step_time_start
+                step_time.update(elapsed / update_iter)
+                per_sec = 1.0 / step_time.avg
                 logger.info(
-                    f"({self.local_rank}) global step {self.global_step}: loss {avg_loss}. lr {self.current_lr:e}"
+                    f"({self.local_rank}) step {self.global_step}: loss {avg_loss}, lr {self.current_lr:e}, step/s {per_sec}"
                 )
+                step_time_start = time.perf_counter()
 
             # Only save on master
             if self.local_rank < 1 and (iters + 1) % save_iter == 0:
@@ -753,7 +854,7 @@ class DistributedTrainer:
             self.global_step += 1
             if self.global_step == self.total_steps:
                 logger.info(
-                    f"({self.local_rank}) global step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
+                    f"({self.local_rank}) step {self.global_step}: loss {loss.item():.5f}. lr {self.current_lr:e}"
                 )
                 if self.local_rank < 1:
                     self._save_checkpoint(model_base)
@@ -764,12 +865,12 @@ class DistributedTrainer:
                 p["lr"] = self.current_lr
 
         # How much time elapsed in minutes
-        elapsed = (time.time() - start) / 60
+        elapsed = (time.perf_counter() - start) / 60
         train_token_loss = avg_loss.avg
         train_token_ppl = math.exp(train_token_loss)
-        metrics['train_elapsed_min'] = elapsed
-        metrics['train_loss'] = train_token_loss
-        metrics['train_ppl'] = train_token_ppl
+        metrics["train_elapsed_min"] = elapsed
+        metrics["train_loss"] = train_token_loss
+        metrics["train_ppl"] = train_token_ppl
         return metrics
 
     def _eval_step(self, batch):
@@ -786,7 +887,7 @@ class DistributedTrainer:
         :return: The validation metrics
         """
         self.model.eval()
-        avg_loss = Average('average_valid_loss')
+        avg_loss = Average("average_valid_loss")
         start = time.time()
         metrics = {}
         with torch.no_grad():
@@ -798,19 +899,19 @@ class DistributedTrainer:
         valid_token_ppl = math.exp(valid_token_loss)
 
         elapsed = (time.time() - start) / 60
-        metrics['valid_elapsed_min'] = elapsed
-        metrics['average_valid_loss'] = valid_token_loss
-        metrics['average_valid_word_ppl'] = valid_token_ppl
+        metrics["valid_elapsed_min"] = elapsed
+        metrics["average_valid_loss"] = valid_token_loss
+        metrics["average_valid_word_ppl"] = valid_token_ppl
         return metrics
 
     def _checkpoint_for(self, model_base):
-        return f'{model_base}-step-{self.global_step}'
+        return f"{model_base}-step-{self.global_step}"
 
     def _save_checkpoint(self, model_base: str):
         checkpoint_name = self._checkpoint_for(model_base)
-        logging.debug('(%d) saving checkpoint [%s]', self.local_rank, checkpoint_name)
-        model_ = self.model.module if hasattr(self.model, 'module') else self.model
-        torch.save(model_.state_dict(), checkpoint_name + '.pth')
+        logging.debug("(%d) saving checkpoint [%s]", self.local_rank, checkpoint_name)
+        model_ = self.model.module if hasattr(self.model, "module") else self.model
+        torch.save(model_.state_dict(), checkpoint_name + ".pth")
 
 
 class DistributedLMTrainer(DistributedTrainer):
@@ -856,7 +957,12 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
         (x, y) = batch
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
+        logits = self.model(
+            x,
+            y[:, :-1],
+            self.model.create_pad_mask(x),
+            self.model.create_pad_mask(y[:, :-1]),
+        )
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         loss.backward()
@@ -867,7 +973,12 @@ class DistributedSeq2SeqTrainer(DistributedTrainer):
 
         x = x.to(device=self.device)
         y = y.to(device=self.device)
-        logits = self.model(x, y[:, :-1], self.model.create_pad_mask(x), self.model.create_pad_mask(y[:, :-1]))
+        logits = self.model(
+            x,
+            y[:, :-1],
+            self.model.create_pad_mask(x),
+            self.model.create_pad_mask(y[:, :-1]),
+        )
         y = y[:, 1:].contiguous()
         loss = self.loss_function(logits.reshape(-1, self.model.vocab_size), y.view(-1))
         return loss.item()
@@ -893,5 +1004,5 @@ class SingleDeviceNLITrainer(SingleDeviceTrainer):
         return loss.item()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pass

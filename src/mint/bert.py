@@ -7,7 +7,7 @@ from mint.postln import TransformerEncoder
 from mint.common import WeightTiedVocabProjection
 import logging
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 
 class BertLearnedPositionalEmbedding(nn.Module):
@@ -20,13 +20,21 @@ class BertLearnedPositionalEmbedding(nn.Module):
     Each of these embeddings are added together in the forward
     """
 
-    def __init__(self, vocab_dim: int, hidden_dim: int = 768, padding_idx: int = 0, max_seq_len: int = 512):
+    def __init__(
+        self,
+        vocab_dim: int,
+        hidden_dim: int = 768,
+        padding_idx: int = 0,
+        max_seq_len: int = 512,
+    ):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_dim, hidden_dim, padding_idx)
         self.position_embeddings = nn.Embedding(max_seq_len, hidden_dim)
         self.token_type_embeddings = nn.Embedding(2, hidden_dim)
 
-    def forward(self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, token_type: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Takes a tensor of shape `[B, T]` and an optional `token_type` of same shape
 
         :param x: A tensor of word one-hots, shape `[B, T]`
@@ -35,7 +43,9 @@ class BertLearnedPositionalEmbedding(nn.Module):
         """
         embed = self.word_embeddings(x)
 
-        position = self.position_embeddings(torch.arange(x.shape[-1], dtype=x.dtype).to(x.device)).unsqueeze(0)
+        position = self.position_embeddings(
+            torch.arange(x.shape[-1], dtype=x.dtype).to(x.device)
+        ).unsqueeze(0)
 
         if token_type is None:
             token_type = torch.zeros(1, dtype=x.dtype).to(x.device).unsqueeze(0)
@@ -71,7 +81,7 @@ class TransformerPooledEncoder(TransformerEncoder):
         feed_forward_size: Optional[int] = None,
         output: Optional[nn.Module] = None,
         max_seq_len: int = 512,
-        pool_type: str = 'cls',
+        pool_type: str = "cls",
         use_mlp_layer: bool = True,
         **kwargs,
     ):
@@ -100,9 +110,11 @@ class TransformerPooledEncoder(TransformerEncoder):
             feed_forward_size,
             max_seq_len,
         )
-        self.pooler = nn.Linear(hidden_size, hidden_size) if use_mlp_layer else nn.Identity()
+        self.pooler = (
+            nn.Linear(hidden_size, hidden_size) if use_mlp_layer else nn.Identity()
+        )
         self.mlp_activation = torch.tanh if use_mlp_layer else nn.Identity()
-        self.pooling = self.zero_pool if pool_type == 'cls' else self.mean_pool
+        self.pooling = self.zero_pool if pool_type == "cls" else self.mean_pool
         self.output = output if output else nn.Identity()
         self.apply(self.init_layer_weights)
 
@@ -123,7 +135,10 @@ class TransformerPooledEncoder(TransformerEncoder):
         return embeddings.sum(1) / seq_lengths.unsqueeze(-1)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        token_type: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
 
@@ -192,7 +207,10 @@ class TransformerProjectionEncoder(TransformerEncoder):
         self.apply(self.init_layer_weights)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        token_type: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
 
@@ -271,7 +289,10 @@ class TransformerMLM(TransformerEncoder):
         return nn.CrossEntropyLoss(ignore_index=0)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None, token_type: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        token_type: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Apply the encoder from the parent, followed by penultimate and output projection
 
@@ -325,7 +346,7 @@ class SentenceBert(TransformerPooledEncoder):
         activation: nn.Module = nn.GELU(),
         feed_forward_size: Optional[int] = None,
         max_seq_len: int = 512,
-        pool_type: str = 'mean',
+        pool_type: str = "mean",
         use_mlp_layer: bool = False,
         num_classes: int = 3,
         **kwargs,
@@ -380,23 +401,37 @@ class BertCreator:
         unused_checkpoint_fields = set(hf_field_names)
         remap = {}
         for field_name in hf_field_names:
-            new_field_name = field_name.replace('bert.encoder', 'encoder')
-            new_field_name = new_field_name.replace('bert.embeddings', 'embeddings')
-            new_field_name = new_field_name.replace('bert.pooler', 'pooler')
-            new_field_name = new_field_name.replace('encoder.layer', 'encoder')
-            new_field_name = new_field_name.replace('attention.self', 'self_attention')
-            new_field_name = new_field_name.replace('attention.output.LayerNorm', 'self_attention_layer_norm')
-            new_field_name = new_field_name.replace('attention.output.dense', 'self_attention.output')
-            new_field_name = new_field_name.replace('intermediate.dense', 'ffn.0')
-            new_field_name = new_field_name.replace('output.dense', 'ffn.2')
-            new_field_name = new_field_name.replace('gamma', 'weight')
-            new_field_name = new_field_name.replace('beta', 'bias')
-            new_field_name = new_field_name.replace('output.LayerNorm', 'output_layer_norm')
-            new_field_name = new_field_name.replace('embeddings.LayerNorm', 'embeddings_layer_norm')
-            new_field_name = new_field_name.replace('cls.predictions.bias', 'output_bias')
-            new_field_name = new_field_name.replace('cls.predictions.transform.dense', 'transform')
-            new_field_name = new_field_name.replace('cls.predictions.transform.LayerNorm', 'layer_norm')
-            new_field_name = new_field_name.replace('pooler.dense', 'pooler')
+            new_field_name = field_name.replace("bert.encoder", "encoder")
+            new_field_name = new_field_name.replace("bert.embeddings", "embeddings")
+            new_field_name = new_field_name.replace("bert.pooler", "pooler")
+            new_field_name = new_field_name.replace("encoder.layer", "encoder")
+            new_field_name = new_field_name.replace("attention.self", "self_attention")
+            new_field_name = new_field_name.replace(
+                "attention.output.LayerNorm", "self_attention_layer_norm"
+            )
+            new_field_name = new_field_name.replace(
+                "attention.output.dense", "self_attention.output"
+            )
+            new_field_name = new_field_name.replace("intermediate.dense", "ffn.0")
+            new_field_name = new_field_name.replace("output.dense", "ffn.2")
+            new_field_name = new_field_name.replace("gamma", "weight")
+            new_field_name = new_field_name.replace("beta", "bias")
+            new_field_name = new_field_name.replace(
+                "output.LayerNorm", "output_layer_norm"
+            )
+            new_field_name = new_field_name.replace(
+                "embeddings.LayerNorm", "embeddings_layer_norm"
+            )
+            new_field_name = new_field_name.replace(
+                "cls.predictions.bias", "output_bias"
+            )
+            new_field_name = new_field_name.replace(
+                "cls.predictions.transform.dense", "transform"
+            )
+            new_field_name = new_field_name.replace(
+                "cls.predictions.transform.LayerNorm", "layer_norm"
+            )
+            new_field_name = new_field_name.replace("pooler.dense", "pooler")
             if new_field_name in tlm_field_names:
                 tlm_field_names.remove(new_field_name)
                 unused_checkpoint_fields.remove(field_name)
@@ -407,81 +442,101 @@ class BertCreator:
 
     @classmethod
     def get_vocab_and_hidden_dims(cls, hf_dict: dict) -> tuple:
-        embeddings_weight = hf_dict[[k for k in hf_dict if 'embeddings.word_embeddings.weight' in k][0]]
+        embeddings_weight = hf_dict[
+            [k for k in hf_dict if "embeddings.word_embeddings.weight" in k][0]
+        ]
         return embeddings_weight.shape
 
     @classmethod
-    def mlm_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+    def mlm_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BertCreator.get_vocab_and_hidden_dims(hf_dict)
         tlm = TransformerMLM(vocab_size, **kwargs)
         missing, unused = BertCreator.convert_state_dict(tlm, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return tlm
 
     @classmethod
-    def enc_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+    def enc_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BertCreator.get_vocab_and_hidden_dims(hf_dict)
         enc = TransformerEncoder(vocab_size, **kwargs)
         missing, unused = BertCreator.convert_state_dict(enc, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return enc
 
     @classmethod
-    def pooled_enc_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+    def pooled_enc_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BertCreator.get_vocab_and_hidden_dims(hf_dict)
         enc = TransformerPooledEncoder(vocab_size, **kwargs)
         missing, unused = BertCreator.convert_state_dict(enc, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return enc
 
     @classmethod
-    def dual_encoder_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+    def dual_encoder_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BertCreator.get_vocab_and_hidden_dims(hf_dict)
         enc = SentenceBert(vocab_size, **kwargs)
         missing, unused = BertCreator.convert_state_dict(enc, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return enc
 
     @classmethod
-    def proj_enc_from_pretrained(cls, checkpoint_file_or_dir: str, map_location=None, **kwargs):
+    def proj_enc_from_pretrained(
+        cls, checkpoint_file_or_dir: str, map_location=None, **kwargs
+    ):
         if os.path.isdir(checkpoint_file_or_dir):
-            checkpoint = os.path.join(checkpoint_file_or_dir, 'pytorch_model.bin')
+            checkpoint = os.path.join(checkpoint_file_or_dir, "pytorch_model.bin")
         else:
             checkpoint = checkpoint_file_or_dir
         hf_dict = torch.load(checkpoint, map_location=map_location)
         vocab_size, hidden_size = BertCreator.get_vocab_and_hidden_dims(hf_dict)
         enc = TransformerProjectionEncoder(vocab_size, **kwargs)
         missing, unused = BertCreator.convert_state_dict(enc, hf_dict)
-        logging.info(f'Unset params: {missing}')
-        logging.info(f'Unused checkpoint fields: {unused}')
+        logging.info(f"Unset params: {missing}")
+        logging.info(f"Unused checkpoint fields: {unused}")
         return enc
 
 
-def noise_inputs(inputs, vocab_size, mask_value, ignore_prefix=True, ignore_suffix=True, mask_prob=0.15, pad_value=0):
+def noise_inputs(
+    inputs,
+    vocab_size,
+    mask_value,
+    ignore_prefix=True,
+    ignore_suffix=True,
+    mask_prob=0.15,
+    pad_value=0,
+):
     """Apply the BERT masking algorithm
 
     Identify `mask_prob` fraction of inputs to be corrupted.  80% of those are [MASK] replaced, 10% are
@@ -517,7 +572,9 @@ def noise_inputs(inputs, vocab_size, mask_value, ignore_prefix=True, ignore_suff
     indices_random = indices_random & masked_indices & ~indices_replaced
     # Dont predict [PAD] which is zero for bert and 1 for RoBERTa
     # We will assume here that PAD is one of the tokens near the beginning of the vocab
-    random_words = np.random.randint(low=pad_value + 1, high=vocab_size - 1, size=len(inputs))
+    random_words = np.random.randint(
+        low=pad_value + 1, high=vocab_size - 1, size=len(inputs)
+    )
     inputs[indices_random == 1] = random_words[indices_random == 1]
     return inputs, labels
 
@@ -536,7 +593,9 @@ class NoisingCollator:
         noised = []
         denoised = []
         for x in batch:
-            x_noise, x_recon = noise_inputs(x[0].numpy(), self.vocab_size, self.mask_value, self.pad_value)
+            x_noise, x_recon = noise_inputs(
+                x[0].numpy(), self.vocab_size, self.mask_value, self.pad_value
+            )
             noised.append(torch.from_numpy(x_noise))
             denoised.append(torch.from_numpy(x_recon))
 

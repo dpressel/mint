@@ -8,7 +8,7 @@ import os
 import json
 from typing import Callable, Optional, List
 
-logger = logging.getLogger('mint')
+logger = logging.getLogger("mint")
 
 try:
     import bz2
@@ -16,7 +16,7 @@ except:
     logger.warning("Could not import bzip2 decompression lib")
 
 
-def jsonl_parser(field: str = 'x') -> Callable:
+def jsonl_parser(field: str = "x") -> Callable:
     def get_jsonl(line) -> torch.tensor:
         x = json.loads(line)[field]
         return x if x else None
@@ -31,7 +31,9 @@ def gpt2_splitter():
     """
     import regex
 
-    BPE_PATTERN = regex.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
+    BPE_PATTERN = regex.compile(
+        r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    )
     return lambda text: [w.strip() for w in regex.findall(BPE_PATTERN, text)]
 
 
@@ -41,10 +43,10 @@ class TextFile:
         self.file = None
 
     def _open(self):
-        if self.filename.endswith('.gz'):
-            self.file = gzip.open(self.filename, mode='rt', encoding='utf-8')
-        elif self.filename.endswith('.bz2'):
-            self.file = bz2.open(self.filename, mode='rt', encoding='utf-8')
+        if self.filename.endswith(".gz"):
+            self.file = gzip.open(self.filename, mode="rt", encoding="utf-8")
+        elif self.filename.endswith(".bz2"):
+            self.file = bz2.open(self.filename, mode="rt", encoding="utf-8")
         else:
             self.file = open(self.filename, encoding="utf-8")
 
@@ -71,8 +73,8 @@ class RawInfiniteDataset(IterableDataset):
         pattern: str,
         tokenizer,
         training=True,
-        prefix='[CLS]',
-        suffix='[SEP]',
+        prefix="[CLS]",
+        suffix="[SEP]",
         seq_len: int = 512,
         get_data_fn: Optional[Callable] = None,
         shuf_buf_len: int = 100,
@@ -82,7 +84,9 @@ class RawInfiniteDataset(IterableDataset):
         self.tokenizer = tokenizer
         self.start_token = self.tokenizer.token_to_id(prefix)
         self.end_token = self.tokenizer.token_to_id(suffix)
-        self.pattern = pattern if not os.path.isdir(pattern) else os.path.join(pattern, "*")
+        self.pattern = (
+            pattern if not os.path.isdir(pattern) else os.path.join(pattern, "*")
+        )
 
         self.samples = 0
         self.rank = 0
@@ -144,7 +148,9 @@ class RawInfiniteDataset(IterableDataset):
                             tokens += line.ids
                             if len(tokens) >= (self.seq_len - 2):
                                 tensor = torch.tensor(
-                                    [self.start_token] + tokens[: self.seq_len - 2] + [self.end_token]
+                                    [self.start_token]
+                                    + tokens[: self.seq_len - 2]
+                                    + [self.end_token]
                                 )
                                 tokens = tokens[self.seq_len - 2 :]
                                 shuffle_buffer.append(tensor)
@@ -160,7 +166,9 @@ class RawInfiniteDataset(IterableDataset):
 class InfinitePreprocessedDataset(IterableDataset):
     """Infinite dataset on shards with multiple workers and preprocessing on-the-fly"""
 
-    def __init__(self, pattern: str, training=True, get_data_fn=None, shuf_buf_len: int = 100):
+    def __init__(
+        self, pattern: str, training=True, get_data_fn=None, shuf_buf_len: int = 100
+    ):
         super().__init__()
         self.pattern = pattern
         self.samples = 0
@@ -200,7 +208,9 @@ class InfinitePreprocessedDataset(IterableDataset):
                     + " This might mean that you are passing an incorrect training or validation directory"
                 )
             else:
-                raise Exception(f"No files of pattern {self.pattern} were found in {self.directory}!")
+                raise Exception(
+                    f"No files of pattern {self.pattern} were found in {self.directory}!"
+                )
         return files, read_file_order, node_worker_id
 
     def __iter__(self):
@@ -237,7 +247,7 @@ def read_cls_dataset(
     def read_space_delim_line(line: str):
         toks = line.split()
         label = toks[0]
-        tokens = ' '.join(toks[1:])
+        tokens = " ".join(toks[1:])
         return label, tokens
 
     if get_data_fn is None:
