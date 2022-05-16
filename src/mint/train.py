@@ -277,7 +277,7 @@ class SingleDeviceTrainer:
             current_epoch += 1
 
     def _warmup(self, global_step):
-        warmup_steps = int(self.warmup_fract * self.total_steps)
+        warmup_steps = self.warmup_fract * self.total_steps
         lr_factor = min(1.0, global_step / warmup_steps)
         return self.lr * lr_factor
 
@@ -293,7 +293,7 @@ class SingleDeviceTrainer:
         return scaled_lr
 
     def _lr_step(self, global_step):
-        total_steps_lr1 = self.total_steps * int(self.warmup_fract + self.plateau_fract)
+        total_steps_lr1 = self.total_steps * (self.warmup_fract + self.plateau_fract)
         if global_step < total_steps_lr1:
             return self._warmup(global_step)
         return self._decay(global_step - total_steps_lr1)
@@ -682,7 +682,7 @@ class DistributedTrainer:
         plt.show()
 
     def _warmup(self, global_step):
-        warmup_steps = int(self.warmup_fract * self.total_steps)
+        warmup_steps = self.warmup_fract * self.total_steps
         lr_factor = min(1.0, global_step / warmup_steps)
         return self.lr * lr_factor
 
@@ -698,7 +698,7 @@ class DistributedTrainer:
         return scaled_lr
 
     def _lr_step(self, global_step):
-        total_steps_lr1 = self.total_steps * int(self.warmup_fract + self.plateau_fract)
+        total_steps_lr1 = self.total_steps * (self.warmup_fract + self.plateau_fract)
         if global_step < total_steps_lr1:
             return self._warmup(global_step)
         return self._decay(global_step - total_steps_lr1)
