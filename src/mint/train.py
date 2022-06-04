@@ -219,10 +219,10 @@ class SingleDeviceTrainer:
         y = [self._lr_step(step) for step in steps]
 
         fig, ax = plt.subplots(1, 1)
-        ax.set_title(f"Learning rate schedule for trainer with {total_steps} steps")
+        ax.set_title(f"Learning rate schedule for trainer with {self.total_steps} steps")
         ax.set_xlabel("Steps")
         ax.set_ylabel("Learning Rate")
-        ax.plot(steps, y, label=f"steps={total_steps}")
+        ax.plot(steps, y, label=f"steps={self.total_steps}")
         ax.plot(
             self.global_step,
             self._lr_step(self.global_step),
@@ -760,10 +760,10 @@ class DistributedTrainer:
         y = [self._lr_step(step) for step in steps]
 
         fig, ax = plt.subplots(1, 1)
-        ax.set_title(f"Learning rate schedule for trainer with {total_steps} steps")
+        ax.set_title(f"Learning rate schedule for trainer with {self.total_steps} steps")
         ax.set_xlabel("Steps")
         ax.set_ylabel("Learning Rate")
-        ax.plot(steps, y, label=f"steps={total_steps}")
+        ax.plot(steps, y, label=f"steps={self.total_steps}")
         ax.plot(
             self.global_step,
             self._lr_step(self.global_step),
