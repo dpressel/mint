@@ -147,10 +147,7 @@ class TransformerPooledEncoder(TransformerEncoder):
         :param token_type:
         :return:
         """
-        y = self.embeddings(x, token_type)
-        y = self.embeddings_layer_norm(y)
-        for t in self.encoder:
-            y = t(y, mask)
+        y = super().forward(x, mask, token_type)
         pooled = self.pooling(x, y)
         y = self.mlp_activation(self.pooler(pooled))
         return self.output(y)
@@ -219,10 +216,7 @@ class TransformerProjectionEncoder(TransformerEncoder):
         :param token_type: An optional tensor of 0 or 1, shape `[B, T]`
         :return:
         """
-        y = self.embeddings(x, token_type)
-        y = self.embeddings_layer_norm(y)
-        for t in self.encoder:
-            y = t(y, mask)
+        y = super().forward(x, mask, token_type)
         return self.output(y)
 
 

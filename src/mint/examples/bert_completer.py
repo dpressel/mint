@@ -49,7 +49,7 @@ def main():
             ids = torch.tensor(tokenized_input.ids, device=args.device).unsqueeze(0)
             response = model(ids).squeeze(0)
             if sampling:
-                sample_dist = response.exp()
+                sample_dist = torch.softmax(response, -1)
                 output = torch.multinomial(sample_dist, num_samples=1)
                 response = output.squeeze().tolist()
             else:
