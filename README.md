@@ -7,7 +7,7 @@ A minimal implementation of common Transformers from scratch!
 Minimal PyTorch implementation of common Transformer architectures.  Currently implements
 
 - Encoder Only
-  - BERT/RoBERTa
+  - [BERT](https://aclanthology.org/N19-1423/) / [RoBERTa](https://arxiv.org/pdf/1907.11692.pdf)
 - Decoder Only
   - [GPT](https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf)
   - [GPT2](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)
