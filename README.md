@@ -95,10 +95,6 @@ for file in *.bz2; do mv "$file" "AA_$file"; done;
 ```
 We can then copy these to a single directory, or split them however we would like into train and test
 
-
-Unlike Wikitext-2, the data in Wikipedia doesnt use any tokenization upfront.
-There is a regex used in GPT and RoBERTa, (also similar to BERT's) preprocessing, which we use in this example.
-
 Here is how you can train on multiple workers with DistributedDataParallel:
 
 ```
