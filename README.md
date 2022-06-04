@@ -7,7 +7,7 @@ A minimalistic implementation of common Transformers from scratch!
 Minimal PyTorch implementation of common Transformer architectures.  Currently implements
 
 - Encoder Only
-  - BERT/RoBERTa
+  - [BERT](https://aclanthology.org/N19-1423/) / [RoBERTa](https://arxiv.org/pdf/1907.11692.pdf)
 - Decoder Only
   - [GPT](https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf)
   - [GPT2](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)
@@ -94,10 +94,6 @@ In each target generated (e.g. AA, AB, AC), we are going to rename with a prefix
 for file in *.bz2; do mv "$file" "AA_$file"; done;
 ```
 We can then copy these to a single directory, or split them however we would like into train and test
-
-
-Unlike Wikitext-2, the data in Wikipedia doesnt use any tokenization upfront.
-There is a regex used in GPT and RoBERTa, (also similar to BERT's) preprocessing, which we use in this example.
 
 Here is how you can train on multiple workers with DistributedDataParallel:
 
