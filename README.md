@@ -2,6 +2,24 @@
 
 A minimalistic implementation of common Transformers from scratch!
 
+## Colabs
+
+A series of tutorials on building common Transformer models from scratch. Each tutorial builds on the previous one, so they should be done in order.
+
+- [BERT from scratch](https://colab.research.google.com/drive/175hnhLkJcXH40tGGpO-1kbBrb2IIcIuT?usp=sharing)
+- [GPT & GPT2 from scratch](https://colab.research.google.com/drive/1svaeO-TF1UEEIq8aew4B5x-y4i79fIXv?usp=sharing)
+- [BART from scratch](https://colab.research.google.com/drive/12C764uTLwPMM9hUlprm_a4bUwHz91a7P?usp=sharing)
+- [T5 from scratch](https://colab.research.google.com/drive/1G3egJjNRrXog-8reY1Ssfoa6c92Dp4jh?usp=sharing)
+- [Build your own SentenceBERT](https://colab.research.google.com/drive/1P11ogAYU-EZ_Kbo7WorMM7p35qvwPuMo?usp=sharing)
+
+The code here is also factored out here as a python package for easy use outside of the tutorial.
+
+Because this is written for a tutorial to explain the modeling and training approach, we currently depend on the
+HuggingFace tokenizers library to implement subword tokenization.  I selected it because its fast, and widely used.
+There are also other good, fast libraries (like BlingFire) that cover multiple subword approaches, but the library
+doesnt support them at this time.
+
+
 ## A Tiny Library for Transformers from the ground up
 
 Minimal PyTorch implementation of common Transformer architectures.  Currently implements
@@ -17,22 +35,6 @@ Minimal PyTorch implementation of common Transformer architectures.  Currently i
 - Dual-Encoder
   - [SentenceBERT](https://aclanthology.org/D19-1410.pdf)
 
-## Colabs
-This code was written for a (not-yet-complete) Colab Tutorial.  Each tutorial
-builds on the previous one, so they should be done in order.
-
-- [BERT from scratch](https://colab.research.google.com/drive/175hnhLkJcXH40tGGpO-1kbBrb2IIcIuT?usp=sharing)
-- [GPT & GPT2 from scratch](https://colab.research.google.com/drive/1svaeO-TF1UEEIq8aew4B5x-y4i79fIXv?usp=sharing)
-- [BART from scratch](https://colab.research.google.com/drive/12C764uTLwPMM9hUlprm_a4bUwHz91a7P?usp=sharing)
-- [T5 from scratch](https://colab.research.google.com/drive/1G3egJjNRrXog-8reY1Ssfoa6c92Dp4jh?usp=sharing)
-- [Build your own SentenceBERT](https://colab.research.google.com/drive/1P11ogAYU-EZ_Kbo7WorMM7p35qvwPuMo?usp=sharing)
-
-The code here is factored out here as a python package for easy use outside of the tutorial.
-
-Because this is written for a tutorial to explain the modeling and training approach, we currently depend on the
-HuggingFace tokenizers library to implement subword tokenization.  I selected it because its fast, and widely used.
-There are also other good, fast libraries (like BlingFire) that cover multiple subword approaches, but the library
-doesnt support them at this time.
 
 ## Pretraining
 
