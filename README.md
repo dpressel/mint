@@ -1,4 +1,4 @@
-# MinT: Minimal Transformer Library
+# MinT: Minimal Transformer Library and Tutorials
 
 A minimalistic implementation of common Transformers from scratch!
 
