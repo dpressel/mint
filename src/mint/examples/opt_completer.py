@@ -5,18 +5,37 @@ import torch
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from mint.opt import OPTCreator
-from transformers import GPT2Tokenizer
+from tokenizers import Tokenizer
 
 logger = logging.getLogger(__file__)
 
-"""An example program where you can provide your GPT model with a priming sequence and have it complete
+"""An example program where you can provide your OPT model with a priming sequence and have it complete
+
+The HF Tokenizers compatible tokenizer.json is available from:
+ 
+https://www.dropbox.com/s/ut8qj4nynhkq4cd/tokenizer.json?dl=1
+
+It was processed using GPT2's tokenizer.json as a template, and replacing the "merges" field with the contents of
+"merges.txt" and replacing the "vocab" field with the contents of "vocab.json", and finally, by setting the 
+postprocessor as follows:
+
+.. code-block:: python
+    tokenizer.post_processor = TemplateProcessing(
+            single="</s> $A",
+            special_tokens=[
+                ("</s>", 1),
+            ],
+        )
+
 """
 
 
 def main():
     parser = argparse.ArgumentParser(description="An interactive shell with OPT")
     parser.add_argument("--model", type=str, required=True, help="Start from a model")
-
+    parser.add_argument(
+        "--tok_file", type=str, required=True, help="Path to tokenizer.json file"
+    )
     parser.add_argument(
         "--query",
         type=str,
@@ -32,19 +51,20 @@ def main():
         default="cuda" if torch.cuda.is_available() else "cpu",
         help="Device (cuda or cpu)",
     )
+
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
-
-    tokenizer = GPT2Tokenizer.from_pretrained(args.model)
-
+    if os.path.isdir(args.tok_file):
+        args.tok_file = os.path.join(args.tok_file, "tokenizer.json")
+    tokenizer = Tokenizer.from_file(args.tok_file)
     model = OPTCreator.lm_from_pretrained(args.model).eval()
     model.to(args.device)
 
     def complete(query, sampling, temperature):
         logger.info("Query: %s", query)
-        inputs = tokenizer.encode(query)
-        print(inputs)
-        print(tokenizer.convert_ids_to_tokens(inputs))
+        tokenized_input = tokenizer.encode(query)
+        logger.info("Priming Sequence: %s", " ".join(tokenized_input.tokens))
+        inputs = tokenized_input.ids
         outputs = []
         with torch.no_grad():
 

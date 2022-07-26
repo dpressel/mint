@@ -29,6 +29,7 @@ Minimal PyTorch implementation of common Transformer architectures.  Currently i
 - Decoder Only
   - [GPT](https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf)
   - [GPT2](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)
+  - [OPT](https://arxiv.org/pdf/2205.01068.pdf)
 - Encoder-Decoder
   - [BART](https://arxiv.org/pdf/1910.13461v1.pdf)
   - [T5](https://arxiv.org/pdf/1910.10683.pdf)
